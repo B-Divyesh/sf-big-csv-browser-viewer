@@ -36,6 +36,6 @@ Results for this repair:
 
 ## Deployment and known gaps
 
-The repair is deployed to the existing Standard-tier Azure Static Web App by the commit below; no container, ACR build, third-party service, upload path, or tracking was added. The post-deploy live check confirms CSP/header parity and normal CSV/TSV/XLSX/filter/export behavior.
+The production static artifact was deployed from `e6b8f03` to the existing Standard-tier Azure Static Web App; no container, ACR build, third-party service, upload path, or tracking was added. The post-deploy live check confirms CSP/header parity and normal CSV/TSV/XLSX/filter/export behavior. `3e7d71e` adds the reusable deployed-URL test target and records this verification; it does not change the built app artifact.
 
 Known limitation: `wasm-unsafe-eval` is supported by current Chromium, Firefox, and Safari CSP implementations required for DuckDB-WASM. Browsers that do not support WebAssembly remain recoverable through the visible retry dialog rather than showing an indefinite loader.
