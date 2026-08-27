@@ -30,6 +30,7 @@ Results for this repair:
 - `npm run build`: passed; `dist/` produced.
 - `npm run test:e2e`: passed, 14/14. This covers normal CSV filtering/export, TSV, XLSX first worksheet, engine failure/retry UI, malformed CSV recovery, desktop/mobile, axe, offline shell, and exact CSP header enforcement.
 - Local preview header check returned: `script-src 'self' 'wasm-unsafe-eval'` with the rest of the deployed policy unchanged.
+- Live production browser suite (`PLAYWRIGHT_BASE_URL=https://big-csv-browser-viewer.sociobot.in npx playwright test`): passed, 14/14. It exercised normal CSV/TSV/XLSX, filter/export, mobile, axe, offline reload, headers, and engine recovery against the deployed URL.
 - 5,000,000-row / 1,012,961,173-byte CSV benchmark: open and exact count in **15.75 s** (`GLASSLINE_BENCH_ROWS=5000000 GLASSLINE_BENCH_PAD=150 node scripts/benchmark-large.mjs`), within the 30 s target.
 - Mobile Lighthouse: Performance **99**, Accessibility **100**; FCP 1.0 s, LCP 1.7 s, CLS 0, TBT 70 ms.
 
