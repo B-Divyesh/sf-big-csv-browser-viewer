@@ -1,0 +1,10 @@
+{
+  "slug": "big-csv-browser-viewer",
+  "title": "Open, filter and pivot multi-million-row CSVs entirely in the browser",
+  "user": "Analysts, ops and finance staff handed CSV exports too big for Excel (>1,048,576 rows or multi-GB) who need to look, filter, group and cut a smaller file; job: answer a question from the file without Python or uploading it.",
+  "smallest_useful_product": "Static page: drop CSV/TSV/XLSX; DuckDB-WASM loads it locally; virtual grid; column stats; filter builder, sort, group-by aggregates, simple pivot; SQL box; export filtered CSV/Parquet.",
+  "success_measure": "Open and filter a 5M-row/1 GB CSV in <30 s on a mid-range laptop; >=30% of sessions export a subset.",
+  "artifact_class": "static-web",
+  "monetization": "free",
+  "constraints": "Browser memory limits (Safari especially); encoding/delimiter sniffing edge cases; WASM bundle size; XLSX parsing of huge sheets is slower than CSV."
+}
