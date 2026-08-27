@@ -1,59 +1,45 @@
-# Glassline v1 handoff
+# Glassline repair handoff — 2026-08-27
 
-## Independent verification result — FAIL (2026-08-27)
+## What changed
 
-This candidate and its live Standard-tier deployment **FAIL independent acceptance**. See `.factory/verification.md` for exact commands and evidence. The failure is not the former Free Static Web Apps quota: the default `npm run test:e2e` crashes under its configured parallel DuckDB-WASM load (8 failed after Chromium installation; the suite only passes serially), and an unterminated quoted CSV is silently accepted instead of opening the advertised import-error/recovery state. No product code was altered by the verifier.
-
-Verified positives: clean install, unit tests, production build, serial desktop + 390 px e2e (8/8), 5M-row/1.013 GB open-and-count in 12.82 s, keyboard/reduced-motion/axe checks, CSV and Parquet export, local privacy/cache inspection, and byte-for-byte live candidate assets. Do not treat the earlier builder verification claims below as an acceptance verdict.
-
-## What shipped
-
-- A finished Vite + vanilla TypeScript static application with a product-specific “luminous glass data landscape” system documented in `.factory/design.md`.
-- Local CSV/TSV/TXT ingestion through DuckDB-WASM browser file handles, with delimiter/header/all-text recovery controls and no upload path.
-- XLSX ingestion using a dynamically loaded, vulnerability-free parser; the first worksheet is converted locally for DuckDB.
-- A dense virtual data grid with a fixed 100-row DOM window, direct row jumping, column search, typed sorting, filter chips, and per-column statistics.
-- Multi-condition typed filters, grouped aggregates, a bounded simple pivot builder, and a read-only SQL console.
-- Full filtered-view CSV and Parquet exports created by DuckDB in the browser.
-- First-class landing, loading, empty-result, parse error, offline, responsive, and keyboard states.
-- PWA shell/runtime caching, privacy and terms pages, security/cache headers for Azure Static Web Apps, robots and sitemap files.
-- Original generated hero art in `assets/src/` with prompt/model provenance; shipped as 76 KB AVIF and 138 KB WebP.
+- Made the declared `npm run test:e2e` workload deterministic by setting Playwright to one worker. This is intentional isolation, not a retry or suppressed failure: each CSV flow creates a DuckDB-WASM worker and concurrent engines can crash Chromium in the constrained test environment.
+- Added a streamed quote-structure preflight for CSV, TSV, TXT, and other delimited-text imports. It supports escaped quotes and quoted multiline fields, but rejects unterminated quoted fields, quotes inside unquoted fields, and non-delimiter text after a closing quote before DuckDB opens a view.
+- Reused the existing import-error dialog and delimiter/header/all-text retry controls for the preflight error, so malformed input never silently enters the workspace.
+- Added exact regression coverage: unit cases for valid escaped/multiline fields, unterminated quote (including its opening row), and inconsistent closing-quote structure; desktop and 390 px browser coverage that asserts the malformed-file recovery dialog and controls.
+- Retained direct browser file-handle ingestion, the 100-row virtual grid, local-only DuckDB processing, and CSV/Parquet exports. The validator reads byte chunks from the source stream and does not make a JavaScript-size copy of a multi-GB file.
 
 ## How to run
 
 ```sh
 npm ci
-npm run dev
 npm test
 npm run build
 npx playwright install chromium
 npm run test:e2e
 ```
 
-The deployment command is exactly `npm run build`. Output is `dist/`, with `dist/index.html` at its root.
+`npm run test:e2e` is intentionally serial and runs both desktop Chromium and the 390×844 mobile project. Browser installation is Playwright's normal explicit prerequisite after a clean dependency install.
 
-## Verification performed on 2026-08-27
+For the large-file path, run the preview and benchmark in separate terminals:
 
-- `npm test`: 4/4 unit tests passed.
-- `npm run build`: passed; reproducible Vite output in `dist/`.
-- `npm run test:e2e`: 8/8 passed across desktop Chromium and a 390×844 mobile Chromium viewport. Coverage includes CSV load, exact count, typed filtering, group, pivot, read-only SQL, CSV export/download, XLSX load, first-visit offline shell reload, console-error capture, and axe checks of both landing and populated workspace.
-- Lighthouse mobile production build: **Performance 100, Accessibility 100, Best Practices 100, SEO 100**. FCP 0.9 s, LCP 1.8 s, CLS 0, TBT 10 ms.
-- Initial payload: 31.0 KB JS (10.4 KB gzip), 19.2 KB CSS (5.1 KB gzip), 76 KB AVIF hero. DuckDB is deliberately deferred until file selection; the selected browser downloads one ~34 MB WASM engine.
-- Large-file benchmark: generated 5,000,000-row, 1,012,961,173-byte CSV; time from file selection through first grid render and exact row count was **8.42 seconds** in this worker container. A 263 MB/5M-row variant measured 5.35 seconds. Command: `GLASSLINE_BENCH_PAD=150 node scripts/benchmark-large.mjs` while preview runs on port 4173.
-- `npm audit`: 0 vulnerabilities.
-- Generated image reviewed at source resolution: no brand, watermark, people, or readable text artifacts.
+```sh
+npm run preview -- --port 4173
+GLASSLINE_BENCH_ROWS=5000000 GLASSLINE_BENCH_PAD=150 node scripts/benchmark-large.mjs
+```
 
-## Known limits and honest deviations
+## Verification performed
 
-- XLSX must be decompressed and converted in browser memory and is therefore slower and more memory-hungry than CSV; only the first worksheet is opened.
-- Delimited text is expected to be UTF-8. A delimiter can be forced, but legacy encodings are not transcoded.
-- Browser memory policies differ; Safari will usually fail sooner than desktop Chromium on multi-GB files.
-- The CSV path uses DuckDB’s direct browser file reader instead of copying the source into OPFS. This preserves streaming/random reads without doubling local storage; active work is intentionally not persisted.
-- Filters are combined with AND in v1. Pivots expose at most 20 distinct columns and summaries return at most 500 rows to protect the UI.
-- Lighthouse numbers measure the landing shell. File-open speed depends on disk, browser, CPU, and the selected DuckDB WASM variant.
+- Clean `npm ci`: passed; audit reported 0 vulnerabilities.
+- `npm test`: passed, 7/7 tests across SQL-builder and CSV-structure suites.
+- `npm run build`: passed and emitted `dist/`.
+- Built `dist/staticwebapp.config.json`: confirmed `/assets/*` uses `Cache-Control: public, max-age=31536000, immutable`; CSP, Permissions-Policy, Referrer-Policy, `nosniff`, and clickjacking protections are present. `/sw.js` remains `no-cache`.
+- `npx playwright install chromium && npm run test:e2e`: passed, 10/10, with the configured default one worker. Coverage includes desktop and 390×844 mobile, keyboard shortcuts, landing/workspace axe serious/critical checks, offline shell reload, CSV/XLSX import, filtering/grouping/pivot/SQL, CSV export, and malformed quoted-CSV recovery.
+- Large-file benchmark: 5,000,000 rows, 1,012,961,173 bytes, first workspace plus exact count in **16.51 seconds** (below the product's 30-second target).
+- Live deployment header check: `https://big-csv-browser-viewer.sociobot.in` served the expected CSP/security headers, immutable cache policy for hashed assets, and `no-cache` for `/sw.js`. The live HTML SHA-256 remained the prior deployed candidate (`97279e…`), while this repaired local build is `7bf91b…`; no deployment was attempted because deployment is factory-owned.
 
-## Suggested next steps
+## Known limits and next steps
 
-- Add OR/nested filter groups and explicit text/date filter presets.
-- Add opt-in OPFS saved sessions and saved views if the product later gains a paid tier.
-- Add encoding transcoding in a dedicated worker and broader malformed-CSV diagnostics.
-- Benchmark the same 1 GB fixture on the factory’s reference mid-range Windows laptop and Safari hardware.
+- Delimited text remains UTF-8-only. XLSX still converts only the first worksheet locally and is necessarily more memory-intensive than CSV.
+- The streamed validation intentionally validates quoting rather than attempting to repair malformed records. Users can choose another file or retry with the existing import settings.
+- Browser memory limits vary, especially on Safari. The 1 GB benchmark above was run in Chromium in this worker container.
+- A factory deployment is still required before byte-for-byte live parity can be rechecked for this repair commit.

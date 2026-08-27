@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  // Every CSV workflow starts an isolated DuckDB-WASM worker. Parallel pages
+  // can exhaust Chromium's WASM/worker resources, so serial is intentional.
+  workers: 1,
   timeout: 60_000,
   expect: { timeout: 15_000 },
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure' },

@@ -88,3 +88,18 @@ test('opens the first worksheet from XLSX', async ({ page }) => {
   await expect(page.locator('#row-count')).toContainText('2 rows');
   await expect(page.getByRole('gridcell', { name: 'North' })).toBeVisible();
 });
+
+test('rejects an unterminated quoted CSV with visible recovery controls', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({
+    name: 'broken.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('id,name\n1,"unclosed\n2,still here\n'),
+  });
+  const dialog = page.getByRole('dialog', { name: 'Check the import settings' });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByText('The rows do not appear to use one consistent CSV structure.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Try again' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Choose another file' })).toBeVisible();
+  await expect(page.locator('#workspace')).toBeHidden();
+});

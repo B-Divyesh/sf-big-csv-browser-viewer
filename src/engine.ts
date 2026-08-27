@@ -4,6 +4,7 @@ import ehWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import mvpWasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import mvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import type { ColumnInfo } from './query';
+import { validateCsvQuotes } from './csv-validation';
 
 type QueryRow = Record<string, unknown>;
 
@@ -64,6 +65,10 @@ export class LocalDataEngine {
   }
 
   async open(file: File, options: CsvOptions, progress?: (percent: number) => void): Promise<OpenResult> {
+    // DuckDB intentionally recovers from some malformed quote sequences. That
+    // is useful for exploratory SQL, but wrong for an import UI that promises
+    // a visible recovery path. Validate text sources before opening the view.
+    if (!/\.xlsx$/i.test(file.name)) await validateCsvQuotes(file, options.delimiter);
     await this.initialize(progress);
     if (!this.db || !this.connection) throw new Error('The local data engine did not start.');
     await this.db.dropFile('source.csv').catch(() => undefined);
