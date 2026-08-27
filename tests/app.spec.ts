@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { strToU8, zipSync } from 'fflate';
+import { readFileSync } from 'node:fs';
+
+const staticWebAppConfig = JSON.parse(readFileSync(new URL('../public/staticwebapp.config.json', import.meta.url), 'utf8')) as {
+  globalHeaders: { 'Content-Security-Policy': string };
+};
 
 const csv = `region,status,amount,date\nNorth,Won,1200,2026-01-03\nSouth,Lost,500,2026-01-04\nNorth,Won,800,2026-01-05\nWest,Open,250,2026-01-06\n`;
 
@@ -16,7 +21,10 @@ function tinyXlsx(): Buffer {
 }
 
 test('landing page is accessible and responsive', async ({ page }) => {
-  await page.goto('/');
+  const response = await page.goto('/');
+  // Vite preview serves this exact production policy (see vite.config.ts), so
+  // the successful DuckDB tests below prove the live browser CSP permits WASM.
+  expect(response?.headers()['content-security-policy']).toBe(staticWebAppConfig.globalHeaders['Content-Security-Policy']);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Your biggest CSV');
   await expect(page.getByText('Never uploaded')).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
@@ -87,6 +95,39 @@ test('opens the first worksheet from XLSX', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'orders.xlsx' })).toBeVisible({ timeout: 45_000 });
   await expect(page.locator('#row-count')).toContainText('2 rows');
   await expect(page.getByRole('gridcell', { name: 'North' })).toBeVisible();
+});
+
+test('opens a tab-separated file', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({
+    name: 'orders.tsv',
+    mimeType: 'text/tab-separated-values',
+    buffer: Buffer.from('region\tamount\nNorth\t1200\nSouth\t500\n'),
+  });
+  await expect(page.getByRole('heading', { name: 'orders.tsv' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('#row-count')).toContainText('2 rows');
+  await expect(page.getByRole('gridcell', { name: 'North' })).toBeVisible();
+});
+
+test('recovers visibly when the local engine cannot initialize', async ({ page }) => {
+  await page.addInitScript(() => {
+    const NativeWorker = window.Worker;
+    class FailingWorker extends NativeWorker {
+      constructor(...args: ConstructorParameters<typeof Worker>) {
+        super(...args);
+        window.setTimeout(() => this.dispatchEvent(new ErrorEvent('error', { message: 'Test engine initialization failure' })), 0);
+      }
+    }
+    window.Worker = FailingWorker;
+  });
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  const dialog = page.getByRole('dialog', { name: 'Local engine could not start' });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByText('Nothing was uploaded.')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Retry engine' })).toBeVisible();
+  await expect(page.locator('#loading-layer')).toBeHidden();
+  await expect(page.locator('#workspace')).toBeHidden();
 });
 
 test('rejects an unterminated quoted CSV with visible recovery controls', async ({ page }) => {

@@ -256,9 +256,10 @@ async function openFile(file: File): Promise<void> {
   }
   currentFile = file;
   const operation = ++loadSequence;
+  let localEngine: LocalDataEngine | null = null;
   showLoading('Starting the local engine', 'Downloading the private query engine once…', 10);
   try {
-    const localEngine = await getEngine();
+    localEngine = await getEngine();
     updateLoading('Reading file structure', 'Detecting columns and data types on this device…', 58);
     const result = await localEngine.open(file, importOptions, (percent) => { progressFill.style.width = `${Math.max(10, percent * .5)}%`; });
     if (operation !== loadSequence) { await localEngine.close(); return; }
@@ -272,7 +273,19 @@ async function openFile(file: File): Promise<void> {
   } catch (error) {
     if (operation !== loadSequence) return;
     hideLoading();
-    $('#error-message').textContent = friendlyError(error);
+    const engineFailure = error instanceof Error && error.name === 'EngineInitializationError';
+    $('#error-title').textContent = engineFailure ? 'Local engine could not start' : 'Check the import settings';
+    $('#error-message').textContent = engineFailure
+      ? 'Glassline could not start its on-device data engine. Nothing was uploaded. Check that this browser allows WebAssembly, then try again.'
+      : friendlyError(error);
+    document.querySelector<HTMLElement>('#error-dialog .eyebrow')!.textContent = engineFailure ? 'Couldn’t start local processing' : 'Couldn’t read the file';
+    document.querySelector<HTMLElement>('#error-dialog .import-options')!.hidden = engineFailure;
+    document.querySelector<HTMLElement>('#error-dialog .form-help')!.hidden = engineFailure;
+    $('#retry-import').textContent = engineFailure ? 'Retry engine' : 'Try again';
+    if (engineFailure && localEngine && engine === localEngine) {
+      engine = null;
+      await localEngine.close().catch(() => undefined);
+    }
     errorDialog.showModal();
   }
 }

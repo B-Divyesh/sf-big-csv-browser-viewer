@@ -8,6 +8,13 @@ import { validateCsvQuotes } from './csv-validation';
 
 type QueryRow = Record<string, unknown>;
 
+export class EngineInitializationError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'EngineInitializationError';
+  }
+}
+
 const bundles: duckdb.DuckDBBundles = {
   mvp: { mainModule: mvpWasm, mainWorker: mvpWorker },
   eh: { mainModule: ehWasm, mainWorker: ehWorker },
@@ -38,19 +45,66 @@ export interface OpenResult {
 export class LocalDataEngine {
   private db: duckdb.AsyncDuckDB | null = null;
   private connection: duckdb.AsyncDuckDBConnection | null = null;
+  private initializing: Promise<void> | null = null;
 
   async initialize(progress?: (percent: number) => void): Promise<void> {
     if (this.db) return;
-    const bundle = await duckdb.selectBundle(bundles);
-    if (!bundle.mainWorker) throw new Error('This browser cannot start the local data engine.');
-    const worker = new Worker(bundle.mainWorker);
-    const database = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
-    await database.instantiate(bundle.mainModule, bundle.pthreadWorker, (entry) => {
-      if (entry.bytesTotal > 0) progress?.(Math.round((entry.bytesLoaded / entry.bytesTotal) * 100));
-    });
-    await database.open({ path: ':memory:', query: { castBigIntToDouble: false } });
-    this.db = database;
-    this.connection = await database.connect();
+    if (this.initializing) return this.initializing;
+
+    this.initializing = this.start(progress);
+    try {
+      await this.initializing;
+    } finally {
+      this.initializing = null;
+    }
+  }
+
+  private async start(progress?: (percent: number) => void): Promise<void> {
+    let worker: Worker | null = null;
+    let database: duckdb.AsyncDuckDB | null = null;
+    try {
+      const bundle = await duckdb.selectBundle(bundles);
+      if (!bundle.mainWorker) throw new EngineInitializationError('This browser cannot start the local data engine.');
+      worker = new Worker(bundle.mainWorker);
+      database = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), worker);
+
+      // A CSP-blocked WASM module can otherwise leave the worker promise open
+      // forever. Surface worker failures and a finite startup timeout so the
+      // import UI can offer a real retry instead of an endless loading layer.
+      let rejectWorkerFailure!: (reason: Error) => void;
+      const workerFailure = new Promise<never>((_, reject) => { rejectWorkerFailure = reject; });
+      const onWorkerError = (event: ErrorEvent) => rejectWorkerFailure(new EngineInitializationError(event.message || 'The local engine worker stopped before it could start.'));
+      const onWorkerMessageError = () => rejectWorkerFailure(new EngineInitializationError('The local engine worker could not communicate with this browser.'));
+      worker.addEventListener('error', onWorkerError, { once: true });
+      worker.addEventListener('messageerror', onWorkerMessageError, { once: true });
+      let timeoutId = 0;
+      const startupTimeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new EngineInitializationError('Starting the local engine took too long. Check your connection, then try again.')), 30_000);
+      });
+
+      try {
+        await Promise.race([
+          database.instantiate(bundle.mainModule, bundle.pthreadWorker, (entry) => {
+            if (entry.bytesTotal > 0) progress?.(Math.round((entry.bytesLoaded / entry.bytesTotal) * 100));
+          }),
+          workerFailure,
+          startupTimeout,
+        ]);
+      } finally {
+        window.clearTimeout(timeoutId);
+        worker.removeEventListener('error', onWorkerError);
+        worker.removeEventListener('messageerror', onWorkerMessageError);
+      }
+      await database.open({ path: ':memory:', query: { castBigIntToDouble: false } });
+      this.db = database;
+      this.connection = await database.connect();
+    } catch (error) {
+      await database?.terminate().catch(() => undefined);
+      worker?.terminate();
+      if (error instanceof EngineInitializationError) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new EngineInitializationError(`The local data engine could not start: ${message}`, { cause: error });
+    }
   }
 
   private async xlsxToCsv(file: File): Promise<File> {
