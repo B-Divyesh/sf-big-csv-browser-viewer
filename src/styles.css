@@ -243,7 +243,8 @@ select, input { min-height: 44px; padding: 0 10px; }
   .file-bar { align-items: flex-start; padding: 10px 12px; }
   .file-identity h2 { max-width: calc(100vw - 200px); }
   .file-glyph { display: none; }
-  .tool-bar { gap: 5px; }
+  /* Keep the compact workspace actions independently tappable on phones. */
+  .tool-bar { gap: 8px; }
   .tool-bar button { width: 44px; padding: 0; justify-content: center; }
   .tool-bar button span { display: none; }
   .query-strip { padding-inline: 12px; }
@@ -263,7 +264,6 @@ select, input { min-height: 44px; padding: 0 10px; }
   .site-header nav { gap: 6px; }
   .site-header .small { width: 44px; overflow: hidden; color: transparent; position: relative; }
   .site-header .small::after { content: "+"; color: var(--paper); position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; }
-  .tool-bar button { width: 42px; min-height: 42px; }
   .file-bar { min-height: 68px; }
   .file-identity h2 { max-width: calc(100vw - 190px); font-size: 14px; }
   .file-identity p { white-space: nowrap; }

@@ -147,6 +147,28 @@ test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => 
   expect(consoleErrors).toEqual([]);
 });
 
+test('keeps every visible workspace action tappable at 390px', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'This regression is specific to the 390px mobile layout.');
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(390);
+  await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByRole('heading', { name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
+
+  const actions = ['Filter rows', 'Group and pivot', 'SQL query', 'Export view'];
+  const boxes = await Promise.all(actions.map(async (name) => {
+    const box = await page.getByRole('button', { name }).boundingBox();
+    expect(box, `${name} should be visible in the mobile toolbar`).not.toBeNull();
+    expect(box!.width, `${name} target width`).toBeGreaterThanOrEqual(44);
+    expect(box!.height, `${name} target height`).toBeGreaterThanOrEqual(44);
+    return box!;
+  }));
+
+  for (let index = 1; index < boxes.length; index += 1) {
+    expect(boxes[index]!.x - (boxes[index - 1]!.x + boxes[index - 1]!.width), 'adjacent targets need 8px separation').toBeGreaterThanOrEqual(8);
+  }
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+});
+
 test('exports the filtered view as a valid Parquet file', async ({ page }) => {
   await page.goto('/');
   await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
