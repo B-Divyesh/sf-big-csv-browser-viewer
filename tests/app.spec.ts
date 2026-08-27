@@ -23,6 +23,18 @@ test('landing page is accessible and responsive', async ({ page }) => {
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
+test('reopens the cached shell offline', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+  });
+  await context.setOffline(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Your biggest CSV');
+  await context.setOffline(false);
+});
+
 test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });

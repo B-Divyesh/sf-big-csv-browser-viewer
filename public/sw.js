@@ -1,8 +1,15 @@
-const CACHE = 'glassline-shell-v1';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'glassline-shell-v2';
+const SHELL = ['/manifest.webmanifest', '/icon.svg', '/assets/data-landscape.avif', '/assets/data-landscape.webp'];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    const response = await fetch('/index.html', { cache: 'reload' });
+    const html = await response.clone().text();
+    const builtAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
+    await Promise.all([cache.put('/', response.clone()), cache.put('/index.html', response)]);
+    await cache.addAll([...SHELL, ...builtAssets]);
+  })());
   self.skipWaiting();
 });
 
@@ -21,8 +28,14 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== location.origin) return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-    if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
-    return response;
-  }).catch(() => caches.match('/index.html'))));
+  event.respondWith(caches.match(event.request, { ignoreSearch: true, ignoreVary: true }).then((cached) => {
+    if (cached) return cached;
+    return fetch(event.request).then((response) => {
+      if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+      return response;
+    }).catch(async () => {
+      if (event.request.mode === 'navigate') return (await caches.match('/index.html')) || Response.error();
+      return Response.error();
+    });
+  }));
 });
