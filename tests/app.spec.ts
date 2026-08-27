@@ -147,8 +147,8 @@ test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => 
   expect(consoleErrors).toEqual([]);
 });
 
-test('keeps every visible workspace action tappable at 390px', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'This regression is specific to the 390px mobile layout.');
+test('keeps every visible workspace action tappable at 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(390);
   await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
