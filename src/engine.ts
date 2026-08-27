@@ -46,6 +46,7 @@ export class LocalDataEngine {
   private db: duckdb.AsyncDuckDB | null = null;
   private connection: duckdb.AsyncDuckDBConnection | null = null;
   private initializing: Promise<void> | null = null;
+  private parquetReady = false;
 
   async initialize(progress?: (percent: number) => void): Promise<void> {
     if (this.db) return;
@@ -148,8 +149,20 @@ export class LocalDataEngine {
     return Number(row?.total ?? 0);
   }
 
+  private async loadLocalParquetExtension(): Promise<void> {
+    if (this.parquetReady || !this.db || !this.connection) return;
+    // DuckDB-WASM loads Parquet as an extension. Point its extension resolver
+    // at the matching extension version shipped with this app, so LOAD stays
+    // same-origin and never needs a third-party request or wider connect-src.
+    const repository = new URL('/duckdb-extensions', window.location.origin).toString();
+    await this.connection.query(`SET custom_extension_repository = '${repository}'`);
+    await this.connection.query('LOAD parquet');
+    this.parquetReady = true;
+  }
+
   async export(sql: string, format: 'csv' | 'parquet'): Promise<Uint8Array> {
     if (!this.connection || !this.db) throw new Error('Open a file first.');
+    if (format === 'parquet') await this.loadLocalParquetExtension();
     const filename = `glassline-export.${format}`;
     await this.db.dropFile(filename).catch(() => undefined);
     const options = format === 'csv' ? `(FORMAT CSV, HEADER, DELIMITER ',')` : '(FORMAT PARQUET, COMPRESSION ZSTD)';
@@ -162,5 +175,6 @@ export class LocalDataEngine {
     await this.db?.terminate();
     this.connection = null;
     this.db = null;
+    this.parquetReady = false;
   }
 }

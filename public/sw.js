@@ -1,4 +1,4 @@
-const CACHE = 'glassline-shell-v2';
+const CACHE = 'glassline-shell-v3';
 const SHELL = ['/manifest.webmanifest', '/icon.svg', '/assets/data-landscape.avif', '/assets/data-landscape.webp'];
 
 self.addEventListener('install', (event) => {

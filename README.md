@@ -61,7 +61,7 @@ npm ci
 npm run build
 ```
 
-Deploy the contents of `dist/` as an Azure Static Web App. `public/staticwebapp.config.json` supplies immutable asset caching and security headers, including the narrow CSP3 `wasm-unsafe-eval` allowance DuckDB-WASM needs to compile locally (not `unsafe-eval`). DuckDB and the XLSX reader are bundled locally; the 34 MB query engine is fetched only after a user chooses a file. The initial application JavaScript is about 31 KB uncompressed.
+Deploy the contents of `dist/` as an Azure Static Web App. `public/staticwebapp.config.json` supplies immutable asset caching and security headers, including the narrow CSP3 `wasm-unsafe-eval` allowance DuckDB-WASM needs to compile locally (not `unsafe-eval`). DuckDB and the XLSX reader are bundled locally; the 34 MB query engine is fetched only after a user chooses a file. The matching DuckDB Parquet extension is also shipped as a same-origin, versioned asset and is requested only when a Parquet export is made—no data or extension request leaves the site. The initial application JavaScript is about 31 KB uncompressed.
 
 ## Practical limits
 

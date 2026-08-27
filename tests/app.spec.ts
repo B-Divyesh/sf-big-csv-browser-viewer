@@ -20,6 +20,64 @@ function tinyXlsx(): Buffer {
   return Buffer.from(zipSync(files));
 }
 
+type CompactValue = bigint | number | string | CompactStruct | CompactValue[];
+type CompactStruct = Map<number, CompactValue>;
+
+// Parquet stores its FileMetaData as Apache Thrift's compact protocol. This
+// deliberately small reader validates the downloaded file itself instead of
+// merely asserting the browser emitted a .parquet download.
+function parquetMetadata(bytes: Buffer): CompactStruct {
+  expect(bytes.subarray(0, 4).toString()).toBe('PAR1');
+  expect(bytes.subarray(-4).toString()).toBe('PAR1');
+  const footerLength = bytes.readUInt32LE(bytes.length - 8);
+  const footerStart = bytes.length - 8 - footerLength;
+  expect(footerStart).toBeGreaterThan(4);
+  let offset = footerStart;
+  const readByte = () => bytes[offset++]!;
+  const readVarint = (): bigint => {
+    let value = 0n; let shift = 0n; let next: number;
+    do { next = readByte(); value |= BigInt(next & 0x7f) << shift; shift += 7n; } while (next & 0x80);
+    return value;
+  };
+  const readZigZag = () => { const value = readVarint(); return (value >> 1n) ^ (-(value & 1n)); };
+  const readValue = (type: number): CompactValue => {
+    if (type === 1) return 1;
+    if (type === 2) return 0;
+    if (type === 3) return readByte();
+    if (type === 4 || type === 5 || type === 6) return readZigZag();
+    if (type === 7) { offset += 8; return 0; }
+    if (type === 8) { const length = Number(readVarint()); const value = bytes.subarray(offset, offset + length).toString(); offset += length; return value; }
+    if (type === 9 || type === 10) {
+      const header = readByte(); const length = header >> 4; const count = length === 15 ? Number(readVarint()) : length; const elementType = header & 0x0f;
+      return Array.from({ length: count }, () => readValue(elementType));
+    }
+    if (type === 11) {
+      const count = Number(readVarint()); if (!count) return [];
+      const types = readByte(); return Array.from({ length: count }, () => [readValue(types >> 4), readValue(types & 0x0f)] as CompactValue);
+    }
+    if (type === 12) return readStruct();
+    throw new Error(`Unsupported Parquet metadata field type ${type}`);
+  };
+  const readStruct = (): CompactStruct => {
+    const fields: CompactStruct = new Map(); let previousField = 0;
+    for (;;) {
+      const header = readByte(); if (header === 0) return fields;
+      const type = header & 0x0f; const delta = header >> 4;
+      const field = delta ? previousField + delta : Number(readVarint()); previousField = field;
+      fields.set(field, readValue(type));
+    }
+  };
+  return readStruct();
+}
+
+async function downloadBytes(download: import('@playwright/test').Download): Promise<Buffer> {
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error('The Parquet download stream was unavailable.');
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
+}
+
 test('landing page is accessible and responsive', async ({ page }) => {
   const response = await page.goto('/');
   // Vite preview serves this exact production policy (see vite.config.ts), so
@@ -87,6 +145,35 @@ test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => 
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.csv$/);
   expect(consoleErrors).toEqual([]);
+});
+
+test('exports the filtered view as a valid Parquet file', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByRole('heading', { name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await page.getByRole('button', { name: 'Filter rows' }).click();
+  const filterDialog = page.getByRole('dialog', { name: 'Filter rows' });
+  await filterDialog.locator('select').nth(0).selectOption('region');
+  await filterDialog.locator('select').nth(1).selectOption('equals');
+  await filterDialog.locator('input').fill('North');
+  await filterDialog.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.locator('#row-count')).toContainText('2 rows');
+
+  await page.getByRole('button', { name: 'Export view' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export this view' });
+  await dialog.getByRole('radio', { name: 'Parquet Smaller, typed data' }).check();
+  const downloadPromise = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Export file' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.parquet$/);
+
+  const metadata = parquetMetadata(await downloadBytes(download));
+  expect(metadata.get(3)).toBe(2n); // FileMetaData.num_rows
+  const schema = metadata.get(2) as CompactValue[]; // FileMetaData.schema
+  expect((schema[0] as CompactStruct).get(5)).toBe(4n); // root SchemaElement.num_children
+  expect(schema).toHaveLength(5); // root plus region, status, amount, date
+  expect(metadata.get(4)).toHaveLength(1); // one row group for this small export
+  await expect(dialog).toBeHidden();
 });
 
 test('opens the first worksheet from XLSX', async ({ page }) => {
