@@ -1,5 +1,11 @@
 # Glassline v1 handoff
 
+## Independent verification result — FAIL (2026-08-27)
+
+This candidate and its live Standard-tier deployment **FAIL independent acceptance**. See `.factory/verification.md` for exact commands and evidence. The failure is not the former Free Static Web Apps quota: the default `npm run test:e2e` crashes under its configured parallel DuckDB-WASM load (8 failed after Chromium installation; the suite only passes serially), and an unterminated quoted CSV is silently accepted instead of opening the advertised import-error/recovery state. No product code was altered by the verifier.
+
+Verified positives: clean install, unit tests, production build, serial desktop + 390 px e2e (8/8), 5M-row/1.013 GB open-and-count in 12.82 s, keyboard/reduced-motion/axe checks, CSV and Parquet export, local privacy/cache inspection, and byte-for-byte live candidate assets. Do not treat the earlier builder verification claims below as an acceptance verdict.
+
 ## What shipped
 
 - A finished Vite + vanilla TypeScript static application with a product-specific “luminous glass data landscape” system documented in `.factory/design.md`.
