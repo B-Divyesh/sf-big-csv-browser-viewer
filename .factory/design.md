@@ -26,7 +26,7 @@ Fine glass highlights use white at 6–12% alpha only on surfaces, never for bod
 
 ## Typography
 
-- Interface and editorial: `InterVariable`, self-hosted variable WOFF2, with system sans fallback. 16px minimum body, 1.5 line-height.
+- Interface and editorial: the native system UI sans stack, deliberately avoiding a font download on a utility whose first job is to open a local file quickly. 16px minimum body, 1.5 line-height.
 - Data and code: `Berkeley Mono`-like system stack (`ui-monospace, SFMono-Regular, Consolas, monospace`) to avoid a second font payload. Table numbers use tabular figures.
 - Scale: 12 / 14 / 16 / 20 / 32 / clamp(42–68) px. The 12 and 14 sizes are reserved for supplementary grid metadata with high contrast.
 

@@ -1,0 +1,10 @@
+{
+  "name": "Glassline — Big CSV viewer",
+  "short_name": "Glassline",
+  "description": "Open, filter and pivot huge CSVs locally.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07110f",
+  "theme_color": "#07110f",
+  "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
