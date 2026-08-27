@@ -1,45 +1,35 @@
-# Glassline repair handoff — 2026-08-27
+# Verification handoff — FAIL — 2026-08-27
 
-## What changed
+**Tested candidate:** `515ad437027468d184cfd35cb63b00dcb97336aa`
+**Tested deployment:** <https://big-csv-browser-viewer.sociobot.in>
 
-- Made the declared `npm run test:e2e` workload deterministic by setting Playwright to one worker. This is intentional isolation, not a retry or suppressed failure: each CSV flow creates a DuckDB-WASM worker and concurrent engines can crash Chromium in the constrained test environment.
-- Added a streamed quote-structure preflight for CSV, TSV, TXT, and other delimited-text imports. It supports escaped quotes and quoted multiline fields, but rejects unterminated quoted fields, quotes inside unquoted fields, and non-delimiter text after a closing quote before DuckDB opens a view.
-- Reused the existing import-error dialog and delimiter/header/all-text retry controls for the preflight error, so malformed input never silently enters the workspace.
-- Added exact regression coverage: unit cases for valid escaped/multiline fields, unterminated quote (including its opening row), and inconsistent closing-quote structure; desktop and 390 px browser coverage that asserts the malformed-file recovery dialog and controls.
-- Retained direct browser file-handle ingestion, the 100-row virtual grid, local-only DuckDB processing, and CSV/Parquet exports. The validator reads byte chunks from the source stream and does not make a JavaScript-size copy of a multi-GB file.
+## Unambiguous status
 
-## How to run
+**FAIL. Do not accept or promote this candidate.** The live deployment exactly matches the candidate build, but the candidate's production CSP blocks DuckDB-WASM compilation. A normal local CSV remains indefinitely on the loading layer (still no workspace or error dialog after 45 seconds), so the central no-upload CSV workflow does not work in production.
 
-```sh
-npm ci
-npm test
-npm run build
-npx playwright install chromium
-npm run test:e2e
+## What was independently verified
+
+- Clean `npm ci` passed with 0 audit vulnerabilities; `npm test` passed 7/7; `npm run build` passed and produced `dist/`.
+- Exact default `npm run test:e2e` passed 10/10 in 42.3 s after `npx playwright install chromium`, across desktop and 390px mobile.
+- Local 5M-row / 1,012,961,173-byte CSV opened and counted in 23.46 s, below the 30 s target.
+- Local Lighthouse was Performance 100 / Accessibility 100 (FCP 1.0 s, LCP 1.6 s, CLS 0, TBT 0); axe serious/critical findings were zero. Keyboard, focus, reduced motion, offline reload, and service-worker update checks passed locally.
+- Live and fresh local copies are byte-identical for HTML, JS, CSS, service worker, manifest, artwork, DuckDB engine, workers, and WASM. No stale-deployment explanation remains.
+- Privacy/outbound scan found only same-origin runtime fetches; no analytics, upload endpoint, CDN fonts/scripts, or third-party runtime requests.
+
+## Release-blocking defect
+
+Live response header:
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; ...
 ```
 
-`npm run test:e2e` is intentionally serial and runs both desktop Chromium and the 390×844 mobile project. Browser installation is Playwright's normal explicit prerequisite after a clean dependency install.
+Live Chromium error when opening ordinary `orders.csv`:
 
-For the large-file path, run the preview and benchmark in separate terminals:
-
-```sh
-npm run preview -- --port 4173
-GLASSLINE_BENCH_ROWS=5000000 GLASSLINE_BENCH_PAD=150 node scripts/benchmark-large.mjs
+```
+WebAssembly.instantiateStreaming(): Compiling or instantiating WebAssembly module violates the following Content Security policy directive because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: "script-src 'self'".
 ```
 
-## Verification performed
+Required next step: revise the CSP using a security-reviewed WebAssembly allowance (prefer the narrow `wasm-unsafe-eval` and validate browser compatibility), then test the deployed URL with normal CSV/TSV/XLSX, filtering, and export. Also make engine initialization reject into a visible error/retry dialog rather than leaving an infinite loader.
 
-- Clean `npm ci`: passed; audit reported 0 vulnerabilities.
-- `npm test`: passed, 7/7 tests across SQL-builder and CSV-structure suites.
-- `npm run build`: passed and emitted `dist/`.
-- Built `dist/staticwebapp.config.json`: confirmed `/assets/*` uses `Cache-Control: public, max-age=31536000, immutable`; CSP, Permissions-Policy, Referrer-Policy, `nosniff`, and clickjacking protections are present. `/sw.js` remains `no-cache`.
-- `npx playwright install chromium && npm run test:e2e`: passed, 10/10, with the configured default one worker. Coverage includes desktop and 390×844 mobile, keyboard shortcuts, landing/workspace axe serious/critical checks, offline shell reload, CSV/XLSX import, filtering/grouping/pivot/SQL, CSV export, and malformed quoted-CSV recovery.
-- Large-file benchmark: 5,000,000 rows, 1,012,961,173 bytes, first workspace plus exact count in **16.51 seconds** (below the product's 30-second target).
-- Live deployment header check: `https://big-csv-browser-viewer.sociobot.in` served the expected CSP/security headers, immutable cache policy for hashed assets, and `no-cache` for `/sw.js`. The live HTML SHA-256 remained the prior deployed candidate (`97279e…`), while this repaired local build is `7bf91b…`; no deployment was attempted because deployment is factory-owned.
-
-## Known limits and next steps
-
-- Delimited text remains UTF-8-only. XLSX still converts only the first worksheet locally and is necessarily more memory-intensive than CSV.
-- The streamed validation intentionally validates quoting rather than attempting to repair malformed records. Users can choose another file or retry with the existing import settings.
-- Browser memory limits vary, especially on Safari. The 1 GB benchmark above was run in Chromium in this worker container.
-- A factory deployment is still required before byte-for-byte live parity can be rechecked for this repair commit.
+Full evidence and all checked areas are in `.factory/verification-2.md`.
