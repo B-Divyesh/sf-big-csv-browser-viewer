@@ -1,19 +1,15 @@
-# Verification handoff — PASS — 2026-08-27
+# Verification handoff — FAIL — 2026-08-27
 
-**Base candidate:** `515ad437027468d184cfd35cb63b00dcb97336aa`
-**Repair:** production DuckDB-WASM CSP and engine-start recovery
+**Verified candidate:** `544fb50fe4df8f9daebd2fb8ee04a512846413ef`
+**Verified live URL:** <https://big-csv-browser-viewer.sociobot.in>
 
-## Delivered
+## Result
 
-- Kept the Azure Static Web App static. `public/staticwebapp.config.json` now grants only `script-src 'wasm-unsafe-eval'` in addition to the existing same-origin script policy. This is the narrow CSP3 WebAssembly compilation capability; it does not grant `unsafe-eval`, external scripts, uploads, or network access.
-- Added bounded DuckDB engine startup: worker failures and a 30-second startup timeout reject, clean up the failed worker/database, and return control to the UI.
-- Engine failures now show a dedicated, accessible **Local engine could not start** dialog. It clearly states that no data was uploaded, offers **Retry engine**, and removes irrelevant CSV parsing controls. A retry creates a fresh local engine.
-- Made the Vite production preview emit the exact headers from `staticwebapp.config.json`. Browser tests assert the response CSP byte-for-byte and then open real DuckDB-backed data under that policy.
-- Added regression coverage for the exact-CSP CSV/filter/export flow, TSV import, XLSX import, desktop and 390px mobile, axe serious/critical checks, offline shell reload, and forced engine-worker startup failure/recovery.
+**FAIL. Do not release this candidate.** Normal local CSV/TSV/XLSX workflows, filter/group/pivot/read-only SQL, CSV export, privacy policy, production CSP, mobile, keyboard, offline shell, and the 5M-row local benchmark passed. The deployment exactly matches the candidate artifact.
 
-## Verification
+The remaining high-severity defect is a required advertised capability: **Parquet export fails**. On the live site, a two-row CSV opens successfully, then choosing Parquet and pressing **Export file** immediately shows `The local engine reported: table index is out of bounds`, leaves the export dialog open, and creates no download. It reproduced in 242 ms and again in a separate 90-second download-observation run. CSV export succeeds.
 
-Run from a clean checkout:
+## How to verify
 
 ```sh
 npm ci
@@ -21,21 +17,13 @@ npx playwright install chromium
 npm test
 npm run build
 npm run test:e2e
+PLAYWRIGHT_BASE_URL=https://big-csv-browser-viewer.sociobot.in npx playwright test
 ```
 
-Results for this repair:
+Fresh results: `npm test` **7/7**, build passed, local browser tests **14/14**, and deployed browser tests **14/14**. Those suites omit Parquet download coverage. A fresh 5,000,000-row / 1,012,961,173-byte local benchmark opened and exact-counted in **22.04 s**.
 
-- `npm ci`: passed; 0 audit vulnerabilities.
-- `npm test`: passed, 7/7.
-- `npm run build`: passed; `dist/` produced.
-- `npm run test:e2e`: passed, 14/14. This covers normal CSV filtering/export, TSV, XLSX first worksheet, engine failure/retry UI, malformed CSV recovery, desktop/mobile, axe, offline shell, and exact CSP header enforcement.
-- Local preview header check returned: `script-src 'self' 'wasm-unsafe-eval'` with the rest of the deployed policy unchanged.
-- Live production browser suite (`PLAYWRIGHT_BASE_URL=https://big-csv-browser-viewer.sociobot.in npx playwright test`): passed, 14/14. It exercised normal CSV/TSV/XLSX, filter/export, mobile, axe, offline reload, headers, and engine recovery against the deployed URL.
-- 5,000,000-row / 1,012,961,173-byte CSV benchmark: open and exact count in **15.75 s** (`GLASSLINE_BENCH_ROWS=5000000 GLASSLINE_BENCH_PAD=150 node scripts/benchmark-large.mjs`), within the 30 s target.
-- Mobile Lighthouse: Performance **99**, Accessibility **100**; FCP 1.0 s, LCP 1.7 s, CLS 0, TBT 70 ms.
+To reproduce the blocker: open a small CSV, open **Export view**, select **Parquet**, and click **Export file**. Add a test that waits for a `.parquet` download, repair the DuckDB-WASM export path, then repeat the local and deployed checks. Full evidence is in `.factory/verification-3.md`.
 
-## Deployment and known gaps
+## Privacy and deployment status
 
-The production static artifact was deployed from `e6b8f03` to the existing Standard-tier Azure Static Web App; no container, ACR build, third-party service, upload path, or tracking was added. The post-deploy live check confirms CSP/header parity and normal CSV/TSV/XLSX/filter/export behavior. `3e7d71e` adds the reusable deployed-URL test target and records this verification; it does not change the built app artifact.
-
-Known limitation: `wasm-unsafe-eval` is supported by current Chromium, Firefox, and Safari CSP implementations required for DuckDB-WASM. Browsers that do not support WebAssembly remain recoverable through the visible retry dialog rather than showing an indefinite loader.
+No upload endpoint, analytics, third-party runtime request, CDN font, or external asset was observed. The live response uses same-origin CSP with `wasm-unsafe-eval`; assets are immutable-cached, the service worker updates and offline-reloads the shell, and all local and live built asset hashes match. These passes do not offset the failed required Parquet output.
