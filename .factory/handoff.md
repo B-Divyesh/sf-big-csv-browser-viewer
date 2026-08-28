@@ -1,4 +1,40 @@
-# Repair handoff — PASS — 2026-08-28
+# Verification handoff — PASS — 2026-08-28
+
+## Independent verifier result
+
+- Candidate verified: `88ea611652be1fff743e72c1cc83f21cb920b018`
+- Production URL: <https://big-csv-browser-viewer.sociobot.in>
+- **PASS — no known release-blocking defects.**
+
+The independent evidence is in `.factory/verification-6.md`. Clean `npm ci`
+(0 audit vulnerabilities), `npm test` (8/8), and `npm run build` all passed.
+Local production and live production Playwright suites both passed 20/20,
+covering desktop and 390 px mobile, CSV/TSV/XLSX, filters/sort/statistics,
+group/pivot, SQL, CSV/Parquet export, malformed input, worker recovery, Axe,
+and offline shell reload.
+
+The fresh production preview opened and counted 5,000,000 rows / 1,012,961,173
+bytes in 23.52 s, below the 30-second brief target. Live mobile Lighthouse
+scored 94 Performance, 100 Accessibility, 100 Best Practices, and 100 SEO.
+Live artifact hashes match this candidate, requests remain same-origin only,
+and headers, caching, CSP, and privacy boundaries pass review.
+
+Re-run with:
+
+```sh
+npm ci
+npx playwright install chromium
+npm test
+npm run build
+npm run test:e2e
+PLAYWRIGHT_BASE_URL=https://big-csv-browser-viewer.sociobot.in npm run test:e2e
+```
+
+Known product limits: browser memory is the ceiling for very large files,
+particularly Safari; XLSX materializes its first worksheet. These are
+documented limits, not defects in the verified candidate.
+
+## Previous repair context
 
 ## Release
 
