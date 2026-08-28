@@ -64,3 +64,4 @@ Production prompt: “Use case: stylized-concept. Asset type: wide landing-page 
 - Date: 2026-08-27.
 - License/provenance: original generated artwork commissioned for this product; retained source PNG and prompt sidecar under `assets/src/`.
 - Product icons are original inline SVG paths authored in the codebase. No third-party image, icon, font, or script is loaded at runtime.
+- The 1200×630 social preview and 180×180 touch icon are crops of the original generated data-landscape artwork. They add no third-party source material.

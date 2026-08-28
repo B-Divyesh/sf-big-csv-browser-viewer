@@ -80,37 +80,48 @@ async function downloadBytes(download: import('@playwright/test').Download): Pro
   return Buffer.concat(chunks);
 }
 
+async function openDemo(page: import('@playwright/test').Page): Promise<void> {
+  await page.goto('/?demo=1');
+  await expect(page.getByRole('heading', { level: 1, name: 'sample-orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('#row-count')).toContainText('40 rows');
+}
+
 test('landing page is accessible and responsive', async ({ page }) => {
   const response = await page.goto('/');
   // Vite preview serves this exact production policy (see vite.config.ts), so
   // the successful DuckDB tests below prove the live browser CSP permits WASM.
   expect(response?.headers()['content-security-policy']).toBe(staticWebAppConfig.globalHeaders['Content-Security-Policy']);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Your biggest CSV');
-  await expect(page.getByText('Never uploaded')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Filter large CSV files');
+  await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
-test('reopens the cached shell offline', async ({ page, context }) => {
-  await page.goto('/');
+test('@claim:offline-reload reopens the sample workspace offline after the first visit', async ({ page, context }) => {
+  await openDemo(page);
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
-    await new Promise((resolve) => window.setTimeout(resolve, 500));
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
   });
   await context.setOffline(true);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Your biggest CSV');
+  await expect(page.getByRole('heading', { level: 1, name: 'sample-orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('#row-count')).toContainText('40 rows');
   await context.setOffline(false);
 });
 
-test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => {
+test('@claim:core-workflow filters, summarizes, pivots and queries the sample file', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-  await page.goto('/');
-  await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
-  await expect(page.getByRole('heading', { name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
-  await expect(page.locator('#row-count')).toContainText('4 rows');
+  await openDemo(page);
   await expect(page.getByRole('gridcell', { name: 'North', exact: true }).first()).toBeVisible();
+  if ((page.viewportSize()?.width ?? 0) > 720) {
+    await page.locator('#column-list .column-item').filter({ hasText: 'revenue' }).click();
+    await expect(page.locator('#stats-title')).toHaveText('revenue');
+    await page.getByRole('button', { name: 'Close column statistics' }).click();
+  }
+  await page.getByRole('columnheader', { name: 'revenue' }).click();
+  await expect(page.locator('#filter-chips')).toContainText('revenue ascending');
   const workspaceA11y = await new AxeBuilder({ page }).analyze();
   expect(workspaceA11y.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 
@@ -120,33 +131,99 @@ test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => 
   await dialog.locator('select').nth(1).selectOption('equals');
   await dialog.locator('input').fill('North');
   await dialog.getByRole('button', { name: 'Apply filters' }).click();
-  await expect(page.locator('#row-count')).toContainText('2 rows');
+  await expect(page.locator('#row-count')).toContainText('10 rows');
 
   await page.getByRole('button', { name: 'Group and pivot' }).click();
   const analysis = page.getByRole('dialog', { name: 'Group & pivot' });
   await analysis.locator('#group-column').selectOption('status');
   await analysis.getByRole('button', { name: 'Run summary' }).click();
-  await expect(analysis.getByRole('cell', { name: 'Won' })).toBeVisible();
+  await expect(analysis.getByRole('cell', { name: 'Shipped' })).toBeVisible();
   await analysis.getByRole('tab', { name: 'Pivot' }).click();
-  await analysis.locator('#pivot-row').selectOption('region');
+  await analysis.locator('#pivot-row').selectOption('owner');
   await analysis.locator('#pivot-column').selectOption('status');
   await analysis.getByRole('button', { name: 'Run summary' }).click();
-  await expect(analysis.getByRole('columnheader', { name: 'Won' })).toBeVisible();
+  await expect(analysis.getByRole('columnheader', { name: 'Shipped' })).toBeVisible();
   await analysis.getByRole('button', { name: 'Close analysis' }).click();
 
   await page.getByRole('button', { name: 'SQL query' }).click();
   const sqlDialog = page.getByRole('dialog', { name: 'Query with SQL' });
-  await sqlDialog.locator('textarea').fill('SELECT region, SUM(amount) AS total FROM data GROUP BY region ORDER BY total DESC');
+  await sqlDialog.locator('textarea').fill('SELECT region, SUM(revenue) AS total FROM data GROUP BY region ORDER BY total DESC');
   await sqlDialog.getByRole('button', { name: 'Run query' }).click();
-  await expect(sqlDialog.getByRole('cell', { name: '2000' })).toBeVisible();
+  await expect(sqlDialog.getByRole('cell', { name: '17131' })).toBeVisible();
   await sqlDialog.getByRole('button', { name: 'Close SQL' }).click();
-
-  await page.keyboard.press('e');
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('dialog', { name: 'Export this view' }).getByRole('button', { name: 'Export file' }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/\.csv$/);
   expect(consoleErrors).toEqual([]);
+});
+
+test('@claim:demo-sandbox opens 40 sample orders, saves nothing and resets cleanly', async ({ page }) => {
+  await openDemo(page);
+  const banner = page.getByLabel('Demo mode');
+  await expect(banner.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  await page.getByRole('button', { name: 'Filter rows' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Filter rows' });
+  await dialog.locator('select').nth(0).selectOption('region');
+  await dialog.locator('select').nth(1).selectOption('equals');
+  await dialog.locator('input').fill('North');
+  await dialog.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.locator('#row-count')).toContainText('10 rows');
+  await banner.getByRole('button', { name: 'Reset demo' }).click();
+  await expect(page.locator('#row-count')).toContainText('40 rows');
+  expect(await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }))).toEqual({ local: [], session: [] });
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Filter rows' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export view' })).toBeEnabled();
+  await banner.getByRole('link', { name: 'Start for real' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: /Filter large CSV files/ })).toBeVisible();
+  await expect(banner).toBeHidden();
+});
+
+test('@claim:local-processing keeps the complete demo workflow on the site origin', async ({ page }) => {
+  const origins = new Set<string>();
+  page.on('request', (request) => origins.add(new URL(request.url()).origin));
+  await openDemo(page);
+  await page.getByRole('button', { name: 'Filter rows' }).click();
+  const filter = page.getByRole('dialog', { name: 'Filter rows' });
+  await filter.locator('select').nth(0).selectOption('status');
+  await filter.locator('select').nth(1).selectOption('equals');
+  await filter.locator('input').fill('Shipped');
+  await filter.getByRole('button', { name: 'Apply filters' }).click();
+  await page.getByRole('button', { name: 'Group and pivot' }).click();
+  await page.getByRole('dialog', { name: 'Group & pivot' }).getByRole('button', { name: 'Run summary' }).click();
+  await page.getByRole('button', { name: 'Close analysis' }).click();
+  await page.getByRole('button', { name: 'SQL query' }).click();
+  await page.getByRole('dialog', { name: 'Query with SQL' }).getByRole('button', { name: 'Run query' }).click();
+  await page.getByRole('button', { name: 'Close SQL' }).click();
+  await page.getByRole('button', { name: 'Export view' }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export file' }).click();
+  await downloadPromise;
+  expect([...origins]).toEqual([new URL(page.url()).origin]);
+  const cachedPaths = await page.evaluate(async () => {
+    const paths: string[] = [];
+    for (const cacheName of await caches.keys()) {
+      for (const request of await (await caches.open(cacheName)).keys()) paths.push(new URL(request.url).pathname);
+    }
+    return paths;
+  });
+  expect(cachedPaths.some((path) => path.includes('glassline-export') || path.includes('source.csv'))).toBe(false);
+});
+
+test('@claim:csv-export exports only filtered sample rows with the original columns', async ({ page }) => {
+  await openDemo(page);
+  await page.getByRole('button', { name: 'Filter rows' }).click();
+  const filter = page.getByRole('dialog', { name: 'Filter rows' });
+  await filter.locator('select').nth(0).selectOption('region');
+  await filter.locator('select').nth(1).selectOption('equals');
+  await filter.locator('input').fill('North');
+  await filter.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.locator('#row-count')).toContainText('10 rows');
+  await page.getByRole('button', { name: 'Export view' }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export file' }).click();
+  const text = (await downloadBytes(await downloadPromise)).toString('utf8').trim();
+  const lines = text.split(/\r?\n/);
+  expect(lines[0]).toBe('order_id,ordered_at,region,channel,status,customer,category,units,revenue,cost,owner');
+  expect(lines).toHaveLength(11);
+  expect(lines.slice(1).every((line) => line.includes(',North,'))).toBe(true);
 });
 
 test('opens RFC-style quoted multiline CSV fields without relaxing malformed-quote checks', async ({ page }) => {
@@ -163,12 +240,11 @@ test('opens RFC-style quoted multiline CSV fields without relaxing malformed-quo
   }
 });
 
-test('keeps every visible workspace action tappable at 390px', async ({ page }) => {
+test('@claim:mobile-controls keeps every workspace action tappable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/?demo=1');
   await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(390);
-  await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
-  await expect(page.getByRole('heading', { name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole('heading', { name: 'sample-orders.csv' })).toBeVisible({ timeout: 45_000 });
 
   const actions = ['Filter rows', 'Group and pivot', 'SQL query', 'Export view'];
   const boxes = await Promise.all(actions.map(async (name) => {
@@ -182,20 +258,23 @@ test('keeps every visible workspace action tappable at 390px', async ({ page }) 
   for (let index = 1; index < boxes.length; index += 1) {
     expect(boxes[index]!.x - (boxes[index - 1]!.x + boxes[index - 1]!.width), 'adjacent targets need 8px separation').toBeGreaterThanOrEqual(8);
   }
+  await page.keyboard.press('/');
+  await expect(page.getByRole('dialog', { name: 'Filter rows' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('e');
+  await expect(page.getByRole('dialog', { name: 'Export this view' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });
 
-test('exports the filtered view as a valid Parquet file', async ({ page }) => {
-  await page.goto('/');
-  await page.locator('#file-input').setInputFiles({ name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
-  await expect(page.getByRole('heading', { name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
+test('@claim:parquet-export exports the filtered sample view as valid Parquet', async ({ page }) => {
+  await openDemo(page);
   await page.getByRole('button', { name: 'Filter rows' }).click();
   const filterDialog = page.getByRole('dialog', { name: 'Filter rows' });
   await filterDialog.locator('select').nth(0).selectOption('region');
   await filterDialog.locator('select').nth(1).selectOption('equals');
   await filterDialog.locator('input').fill('North');
   await filterDialog.getByRole('button', { name: 'Apply filters' }).click();
-  await expect(page.locator('#row-count')).toContainText('2 rows');
+  await expect(page.locator('#row-count')).toContainText('10 rows');
 
   await page.getByRole('button', { name: 'Export view' }).click();
   const dialog = page.getByRole('dialog', { name: 'Export this view' });
@@ -206,10 +285,10 @@ test('exports the filtered view as a valid Parquet file', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/\.parquet$/);
 
   const metadata = parquetMetadata(await downloadBytes(download));
-  expect(metadata.get(3)).toBe(2n); // FileMetaData.num_rows
+  expect(metadata.get(3)).toBe(10n); // FileMetaData.num_rows
   const schema = metadata.get(2) as CompactValue[]; // FileMetaData.schema
-  expect((schema[0] as CompactStruct).get(5)).toBe(4n); // root SchemaElement.num_children
-  expect(schema).toHaveLength(5); // root plus region, status, amount, date
+  expect((schema[0] as CompactStruct).get(5)).toBe(11n); // root SchemaElement.num_children
+  expect(schema).toHaveLength(12); // root plus the 11 sample columns
   expect(metadata.get(4)).toHaveLength(1); // one row group for this small export
   await expect(dialog).toBeHidden();
 });
@@ -232,6 +311,62 @@ test('opens a tab-separated file', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'orders.tsv' })).toBeVisible({ timeout: 45_000 });
   await expect(page.locator('#row-count')).toContainText('2 rows');
   await expect(page.getByRole('gridcell', { name: 'North' })).toBeVisible();
+});
+
+test('@claim:supported-file-formats opens CSV, TSV, TXT and the first XLSX worksheet', async ({ page }) => {
+  const files = [
+    { name: 'orders.csv', mimeType: 'text/csv', buffer: Buffer.from(csv), expected: '4 rows' },
+    { name: 'orders.tsv', mimeType: 'text/tab-separated-values', buffer: Buffer.from('region\tamount\nNorth\t1200\nSouth\t500\n'), expected: '2 rows' },
+    { name: 'orders.txt', mimeType: 'text/plain', buffer: Buffer.from('region,status\nNorth,Won\nSouth,Lost\n'), expected: '2 rows' },
+    { name: 'orders.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: tinyXlsx(), expected: '2 rows' },
+  ];
+  await page.goto('/?demo=1');
+  await page.getByLabel('Demo mode').getByRole('link', { name: 'Start for real' }).click();
+  for (const file of files) {
+    await page.locator('#file-input').setInputFiles(file);
+    await expect(page.getByRole('heading', { level: 1, name: file.name })).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator('#row-count')).toContainText(file.expected);
+    await page.getByRole('button', { name: 'Open another file' }).click();
+  }
+  await page.locator('#file-input').setInputFiles(files[0]);
+  await expect(page.getByRole('heading', { level: 1, name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: /Filter large CSV files/ })).toBeVisible();
+});
+
+test('routes have unique metadata, shared navigation, focus and a designed 404', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle('Glassline — Filter large CSV files in your browser');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://big-csv-browser-viewer.sociobot.in/');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /glassline-social\.jpg$/);
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveTitle('Demo — Glassline');
+  await expect(page.getByRole('heading', { level: 1, name: 'sample-orders.csv' })).toBeFocused({ timeout: 45_000 });
+  await page.goto('/demo');
+  await expect(page).toHaveTitle('Demo — Glassline');
+  await expect(page.locator('#row-count')).toContainText('40 rows', { timeout: 45_000 });
+
+  for (const route of ['/privacy/', '/terms/']) {
+    await page.goto(route);
+    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+    await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Demo' })).toBeVisible();
+    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Privacy' })).toBeVisible();
+    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Terms' })).toBeVisible();
+    const routeA11y = await new AxeBuilder({ page }).analyze();
+    expect(routeA11y.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
+  }
+
+  const config = JSON.parse(readFileSync(new URL('../public/staticwebapp.config.json', import.meta.url), 'utf8'));
+  expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
+  await page.goto('/404.html');
+  await expect(page).toHaveTitle('Page not found — Glassline');
+  await expect(page.getByRole('heading', { level: 1, name: 'This page has no rows.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Glassline' })).toHaveAttribute('href', '/');
+  const notFoundA11y = await new AxeBuilder({ page }).analyze();
+  expect(notFoundA11y.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
 test('recovers visibly when the local engine cannot initialize', async ({ page }) => {

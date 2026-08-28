@@ -30,31 +30,43 @@ const icon = (name: 'mark' | 'shield' | 'upload' | 'filter' | 'pivot' | 'sql' | 
 };
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
+const routeUrl = new URL(window.location.href);
+const demoMode = routeUrl.searchParams.get('demo') === '1' || routeUrl.pathname === '/demo' || routeUrl.pathname === '/demo/';
 app.innerHTML = `
   <header class="site-header">
     <a class="brand" href="/" aria-label="Glassline home">${icon('mark')}<span>Glassline</span></a>
     <div class="header-status"><span class="pulse" aria-hidden="true"></span><span id="network-label">Ready locally</span></div>
     <nav aria-label="Utility">
+      <a href="/?demo=1">Demo</a>
       <a href="/privacy/">Privacy</a>
       <button class="ghost small only-workspace" id="new-file" hidden>Open another file</button>
     </nav>
   </header>
+  <aside class="demo-banner" id="demo-banner" aria-label="Demo mode" hidden>
+    <p><strong>Demo</strong> — sample data, nothing is saved</p>
+    <div><button class="ghost" id="reset-demo">Reset demo</button><a class="button-link" href="/">Start for real</a></div>
+  </aside>
+  <p class="sr-only" id="route-status" aria-live="polite"></p>
   <main id="main">
     <section class="landing" id="landing" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span></span> Local data workspace</p>
-        <h1 id="hero-title">Your biggest CSV.<br><em>Finally navigable.</em></h1>
-        <p class="lede">Open millions of rows, filter the noise, build a pivot, and export the answer—without uploading a single byte.</p>
+        <p class="eyebrow"><span></span> Runs on this device</p>
+        <h1 id="hero-title">Filter large CSV files<br><em>in your browser.</em></h1>
+        <p class="lede">For analysts handling exports too large for Excel, find and export the rows you need.</p>
+        <div class="hero-actions">
+          <a class="demo-action" href="/?demo=1">Try it with sample data</a>
+          <span>Opens a 40-row order file in the real workspace.</span>
+        </div>
         <label class="drop-zone" id="drop-zone" tabindex="0">
           <input id="file-input" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
           <span class="drop-icon">${icon('upload')}</span>
-          <span><strong>Drop a data file here</strong><small>or choose CSV, TSV, or XLSX</small></span>
-          <span class="choose-file">Choose file</span>
+          <span><strong>Open your own file</strong><small>Drop or choose CSV, TSV, TXT, or XLSX</small></span>
+          <span class="choose-file">Open your CSV</span>
         </label>
         <div class="trust-row" aria-label="Product qualities">
-          <span>${icon('shield')} Never uploaded</span>
-          <span>DuckDB powered</span>
-          <span>No row limit</span>
+          <span>${icon('shield')} File stays in this tab</span>
+          <span>Works offline after the first visit</span>
+          <span>Free to use</span>
         </div>
       </div>
       <figure class="hero-visual">
@@ -62,12 +74,12 @@ app.innerHTML = `
           <source srcset="/assets/data-landscape.avif" type="image/avif" />
           <img src="/assets/data-landscape.webp" width="768" height="512" alt="Abstract glass data slab unfolding into a vast field of ordered rows" fetchpriority="high" decoding="async" />
         </picture>
-        <figcaption><span>5,000,000 rows</span><span>Processed on this device</span></figcaption>
+        <figcaption><span>Filter · Pivot · Query</span><span>Processed on this device</span></figcaption>
       </figure>
       <div class="how-strip">
-        <p><span>01</span><strong>Open</strong><small>Drop the export as-is.</small></p>
-        <p><span>02</span><strong>Shape</strong><small>Filter, sort, group, pivot.</small></p>
-        <p><span>03</span><strong>Take</strong><small>Export only what matters.</small></p>
+        <p><span>01</span><strong>Open your CSV</strong><small>Choose the file you received.</small></p>
+        <p><span>02</span><strong>Filter and summarize rows</strong><small>Sort, group, pivot, or query.</small></p>
+        <p><span>03</span><strong>Export selected rows</strong><small>Download CSV or Parquet.</small></p>
       </div>
     </section>
 
@@ -75,7 +87,7 @@ app.innerHTML = `
       <div class="file-bar">
         <div class="file-identity">
           <span class="file-glyph">CSV</span>
-          <div><h2 id="workspace-title">Data file</h2><p><span id="file-size"></span><span aria-hidden="true"> · </span><span id="row-count">Counting rows…</span></p></div>
+          <div><h2 id="workspace-title" tabindex="-1">Data file</h2><p><span id="file-size"></span><span aria-hidden="true"> · </span><span id="row-count">Counting rows…</span></p></div>
         </div>
         <div class="tool-bar" aria-label="Data tools">
           <button id="open-filter" aria-label="Filter rows">${icon('filter')}<span>Filter</span><kbd>/</kbd></button>
@@ -118,8 +130,8 @@ app.innerHTML = `
   </main>
 
   <footer class="site-footer" id="site-footer">
-    <p>Glassline runs inside your browser. Your file never leaves this device.</p>
-    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><span>Original AI-generated artwork</span></p>
+    <p>Filter large CSV files in your browser.</p>
+    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.1 · Original AI-generated artwork</span></p>
   </footer>
 
   <div class="loading-layer" id="loading-layer" hidden role="status" aria-live="assertive">
@@ -216,6 +228,26 @@ let analysisMode: 'group' | 'pivot' = 'group';
 let importOptions: CsvOptions = { delimiter: 'auto', header: true, allVarchar: false };
 let loadSequence = 0;
 
+function replaceHeading(id: string, level: 1 | 2): HTMLElement {
+  const current = $<HTMLElement>(`#${id}`);
+  if (current.tagName === `H${level}`) return current;
+  const replacement = document.createElement(`h${level}`);
+  for (const attribute of current.attributes) replacement.setAttribute(attribute.name, attribute.value);
+  replacement.innerHTML = current.innerHTML;
+  current.replaceWith(replacement);
+  return replacement;
+}
+
+function setRouteMetadata(isDemo: boolean): void {
+  const title = isDemo ? 'Demo — Glassline' : 'Glassline — Filter large CSV files in your browser';
+  const canonical = isDemo ? 'https://big-csv-browser-viewer.sociobot.in/demo' : 'https://big-csv-browser-viewer.sociobot.in/';
+  document.title = title;
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')!.href = canonical;
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')!.content = title;
+  document.querySelector<HTMLMetaElement>('meta[property="og:url"]')!.content = canonical;
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')!.content = title;
+}
+
 function formatNumber(value: number): string { return new Intl.NumberFormat().format(value); }
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -257,7 +289,7 @@ async function openFile(file: File): Promise<void> {
   currentFile = file;
   const operation = ++loadSequence;
   let localEngine: LocalDataEngine | null = null;
-  showLoading('Starting the local engine', 'Downloading the private query engine once…', 10);
+  showLoading('Starting the local engine', 'Preparing the private query engine…', 10);
   try {
     localEngine = await getEngine();
     updateLoading('Reading file structure', 'Detecting columns and data types on this device…', 58);
@@ -299,11 +331,15 @@ function friendlyError(error: unknown): string {
 
 function enterWorkspace(file: File): void {
   landing.hidden = true; $('#site-footer').hidden = true; workspace.hidden = false;
-  document.querySelectorAll<HTMLElement>('.only-workspace').forEach((item) => { item.hidden = false; });
-  $('#workspace-title').textContent = file.name;
+  document.querySelectorAll<HTMLElement>('.only-workspace').forEach((item) => { item.hidden = demoMode; });
+  replaceHeading('hero-title', 2);
+  const workspaceTitle = replaceHeading('workspace-title', 1);
+  workspaceTitle.textContent = file.name;
   $('#file-size').textContent = formatBytes(file.size);
   $('#column-count').textContent = String(columns.length);
-  gridScroll.focus();
+  $('#route-status').textContent = `${file.name} workspace opened`;
+  workspaceTitle.focus();
+  updateNetwork();
 }
 
 function renderColumns(search = ''): void {
@@ -511,6 +547,33 @@ function resetApp(): void {
   const previousEngine = engine; engine = null; void previousEngine?.close().catch(() => undefined); currentFile = null; columns = []; filters = []; sort = null; rowCount = null;
   workspace.hidden = true; landing.hidden = false; $('#site-footer').hidden = false; fileInput.value = '';
   document.querySelectorAll<HTMLElement>('.only-workspace').forEach((item) => { item.hidden = true; });
+  replaceHeading('workspace-title', 2);
+  replaceHeading('hero-title', 1);
+  $('#route-status').textContent = 'Glassline home';
+  updateNetwork();
+}
+
+async function openDemo(): Promise<void> {
+  try {
+    const response = await fetch('/sample-orders.csv');
+    if (!response.ok) throw new Error('The sample file could not be loaded.');
+    const file = new File([await response.blob()], 'sample-orders.csv', { type: 'text/csv' });
+    await openFile(file);
+  } catch (error) {
+    hideLoading();
+    showToast(error instanceof Error ? error.message : 'The sample file could not be loaded. Reload and try again.');
+  }
+}
+
+async function resetDemo(): Promise<void> {
+  loadSequence++;
+  const previousEngine = engine;
+  engine = null;
+  await previousEngine?.close().catch(() => undefined);
+  currentFile = null; columns = []; filters = []; sort = null; rowCount = null;
+  workspace.hidden = true;
+  await openDemo();
+  showToast('Demo restored to the original 40 orders.');
 }
 
 fileInput.addEventListener('change', () => { const file = fileInput.files?.[0]; if (file) void openFile(file); });
@@ -520,6 +583,7 @@ dropZone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || e
 dropZone.addEventListener('drop', (event) => { const file = (event as DragEvent).dataTransfer?.files[0]; if (file) void openFile(file); });
 $('#cancel-load').addEventListener('click', () => { resetApp(); hideLoading(); });
 $('#new-file').addEventListener('click', resetApp);
+$('#reset-demo').addEventListener('click', () => void resetDemo());
 $('#column-search').addEventListener('input', (event) => renderColumns((event.target as HTMLInputElement).value));
 $('#close-stats').addEventListener('click', () => { $('#stats-panel').hidden = true; });
 $('#open-filter').addEventListener('click', () => { renderFilterBuilder(); filterDialog.showModal(); });
@@ -555,10 +619,26 @@ function updateNetwork(): void {
 }
 window.addEventListener('online', updateNetwork); window.addEventListener('offline', updateNetwork); updateNetwork();
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load', () => {
-  void navigator.serviceWorker.register('/sw.js').then(async (registration) => {
-    await navigator.serviceWorker.ready;
-    const urls = performance.getEntriesByType('resource').map((entry) => entry.name).filter((url) => new URL(url).origin === location.origin);
-    registration.active?.postMessage({ type: 'CACHE_URLS', urls });
-  });
-});
+async function prepareServiceWorker(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return;
+  const registration = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  if (!navigator.serviceWorker.controller) {
+    await new Promise<void>((resolve) => {
+      const timer = window.setTimeout(resolve, 2500);
+      navigator.serviceWorker.addEventListener('controllerchange', () => { window.clearTimeout(timer); resolve(); }, { once: true });
+    });
+  }
+  const urls = performance.getEntriesByType('resource').map((entry) => entry.name).filter((url) => new URL(url).origin === location.origin);
+  registration.active?.postMessage({ type: 'CACHE_URLS', urls });
+}
+
+setRouteMetadata(demoMode);
+if (demoMode) {
+  $('#demo-banner').hidden = false;
+  document.body.classList.add('demo-mode');
+  $('#route-status').textContent = 'Demo workspace loading';
+  void prepareServiceWorker().catch(() => undefined).then(openDemo);
+} else {
+  void prepareServiceWorker().catch(() => undefined);
+}

@@ -1,5 +1,5 @@
-const CACHE = 'glassline-shell-v3';
-const SHELL = ['/manifest.webmanifest', '/icon.svg', '/assets/data-landscape.avif', '/assets/data-landscape.webp'];
+const CACHE = 'glassline-shell-v4';
+const SHELL = ['/manifest.webmanifest', '/icon.svg', '/apple-touch-icon.png', '/assets/data-landscape.avif', '/assets/data-landscape.webp', '/assets/glassline-social.jpg', '/sample-orders.csv'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -7,7 +7,7 @@ self.addEventListener('install', (event) => {
     const response = await fetch('/index.html', { cache: 'reload' });
     const html = await response.clone().text();
     const builtAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
-    await Promise.all([cache.put('/', response.clone()), cache.put('/index.html', response)]);
+    await Promise.all([cache.put('/', response.clone()), cache.put('/demo', response.clone()), cache.put('/index.html', response)]);
     await cache.addAll([...SHELL, ...builtAssets]);
   })());
   self.skipWaiting();

@@ -1,0 +1,41 @@
+order_id,ordered_at,region,channel,status,customer,category,units,revenue,cost,owner
+ORD-26001,2026-08-01,North,Wholesale,Shipped,Aster Market,Office,12,1440,936,Maya Chen
+ORD-26002,2026-08-01,South,Online,Processing,Blue Finch Labs,Electronics,3,897,612,Jon Bell
+ORD-26003,2026-08-02,West,Retail,Shipped,Cedar Works,Furniture,5,2275,1590,Priya Shah
+ORD-26004,2026-08-02,East,Wholesale,Returned,Delta Supply,Office,18,1620,1188,Luis Romero
+ORD-26005,2026-08-03,North,Online,Shipped,Evergreen Studio,Storage,8,760,456,Maya Chen
+ORD-26006,2026-08-03,South,Retail,Pending,Fairway Foods,Office,22,1078,704,Jon Bell
+ORD-26007,2026-08-04,West,Wholesale,Shipped,Granite & Co,Electronics,4,1596,1040,Priya Shah
+ORD-26008,2026-08-04,East,Online,Cancelled,Harbor Health,Furniture,2,880,640,Luis Romero
+ORD-26009,2026-08-05,North,Retail,Shipped,Iris Education,Office,30,1350,810,Maya Chen
+ORD-26010,2026-08-05,South,Wholesale,Processing,Juniper Hotel,Storage,14,1540,980,Jon Bell
+ORD-26011,2026-08-06,West,Online,Shipped,Kite Logistics,Electronics,7,2093,1421,Priya Shah
+ORD-26012,2026-08-06,East,Retail,Pending,Lumen Clinic,Office,11,693,429,Luis Romero
+ORD-26013,2026-08-07,North,Wholesale,Shipped,Maple Hardware,Furniture,6,2880,1980,Maya Chen
+ORD-26014,2026-08-07,South,Online,Returned,Nova Coffee,Storage,9,855,531,Jon Bell
+ORD-26015,2026-08-08,West,Retail,Shipped,Orchid Travel,Office,25,1250,750,Priya Shah
+ORD-26016,2026-08-08,East,Wholesale,Processing,Pioneer Dental,Electronics,5,1745,1150,Luis Romero
+ORD-26017,2026-08-09,North,Online,Shipped,Quartz Media,Furniture,3,1425,990,Maya Chen
+ORD-26018,2026-08-09,South,Retail,Pending,Riverbank Books,Storage,16,1520,960,Jon Bell
+ORD-26019,2026-08-10,West,Wholesale,Shipped,Solstice Energy,Office,40,1840,1120,Priya Shah
+ORD-26020,2026-08-10,East,Online,Cancelled,Trellis Design,Electronics,2,698,460,Luis Romero
+ORD-26021,2026-08-11,North,Retail,Shipped,Unity Pharmacy,Office,19,1140,722,Maya Chen
+ORD-26022,2026-08-11,South,Wholesale,Processing,Valley Textiles,Furniture,8,3680,2560,Jon Bell
+ORD-26023,2026-08-12,West,Online,Shipped,Willow Grocer,Storage,12,1260,768,Priya Shah
+ORD-26024,2026-08-12,East,Retail,Returned,Xenon Research,Electronics,6,2394,1590,Luis Romero
+ORD-26025,2026-08-13,North,Wholesale,Shipped,Yarrow Farms,Office,34,1530,986,Maya Chen
+ORD-26026,2026-08-13,South,Online,Pending,Zenith Fitness,Furniture,4,1900,1320,Jon Bell
+ORD-26027,2026-08-14,West,Retail,Shipped,Aurora Print,Storage,7,735,448,Priya Shah
+ORD-26028,2026-08-14,East,Wholesale,Processing,Brighton Legal,Office,28,1680,1064,Luis Romero
+ORD-26029,2026-08-15,North,Online,Shipped,Cascade Motors,Electronics,9,3141,2070,Maya Chen
+ORD-26030,2026-08-15,South,Retail,Cancelled,Driftwood Inn,Office,10,590,380,Jon Bell
+ORD-26031,2026-08-16,West,Wholesale,Shipped,Elm City School,Furniture,11,5060,3520,Priya Shah
+ORD-26032,2026-08-16,East,Online,Pending,Fieldstone Bank,Storage,15,1575,960,Luis Romero
+ORD-26033,2026-08-17,North,Retail,Shipped,Greenline Transit,Office,24,1440,912,Maya Chen
+ORD-26034,2026-08-17,South,Wholesale,Returned,Hearth Bakery,Electronics,3,1047,690,Jon Bell
+ORD-26035,2026-08-18,West,Online,Shipped,Indigo Events,Furniture,5,2375,1650,Priya Shah
+ORD-26036,2026-08-18,East,Retail,Processing,Keystone Care,Storage,13,1365,832,Luis Romero
+ORD-26037,2026-08-19,North,Wholesale,Shipped,Lakeside Museum,Office,45,2025,1305,Maya Chen
+ORD-26038,2026-08-19,South,Online,Pending,Monarch Realty,Electronics,8,2792,1840,Jon Bell
+ORD-26039,2026-08-20,West,Retail,Shipped,Northstar Foods,Office,17,1020,646,Priya Shah
+ORD-26040,2026-08-20,East,Wholesale,Shipped,Oakridge Library,Storage,20,2100,1280,Luis Romero

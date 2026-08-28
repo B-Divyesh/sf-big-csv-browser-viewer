@@ -23,6 +23,12 @@ const bundles: duckdb.DuckDBBundles = {
 const normalizeValue = (value: unknown): unknown => {
   if (typeof value === 'bigint') return value.toString();
   if (value instanceof Date) return value.toISOString();
+  // Arrow represents DuckDB DATE values as epoch milliseconds in browser
+  // results. Format that narrow range as a readable date instead of exposing
+  // an implementation number in the grid.
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 100_000_000_000 && value < 100_000_000_000_000) {
+    return new Date(value).toISOString().slice(0, 10);
+  }
   if (value instanceof Uint8Array) return `[${value.byteLength} bytes]`;
   return value;
 };

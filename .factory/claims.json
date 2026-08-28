@@ -1,0 +1,58 @@
+[
+  {
+    "id": "demo-sandbox",
+    "claim": "Glassline is free to use without an account; its 40-order demo saves no workspace data, resets, and exits to a blank real workspace.",
+    "where": "home first screen, demo banner, README, terms",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:demo-sandbox",
+    "sandbox": "fresh browser context at /?demo=1; mutate a filter; assert 40-row reset, empty web storage, no sign-in, and blank real exit"
+  },
+  {
+    "id": "local-processing",
+    "claim": "Files, filters, queries, and exports are processed in the browser with only same-origin runtime requests.",
+    "where": "home facts and artwork caption, privacy page, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:local-processing",
+    "sandbox": "fresh /?demo=1 context; intercept requests across filter, summary, SQL, and CSV export; inspect offline cache"
+  },
+  {
+    "id": "offline-reload",
+    "claim": "The sample workspace works offline after the first visit.",
+    "where": "home facts, privacy page, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:offline-reload",
+    "sandbox": "fresh /?demo=1 context; wait for service worker, go offline, reload, and assert 40 sample rows"
+  },
+  {
+    "id": "core-workflow",
+    "claim": "The sample file can be sorted, filtered, profiled, grouped, pivoted, and queried with read-only SQL.",
+    "where": "home how-it-works strip, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:core-workflow",
+    "sandbox": "fresh /?demo=1 context; assert filter count, grouped result, pivot column, SQL total, accessibility, and no console errors"
+  },
+  {
+    "id": "csv-export",
+    "claim": "CSV export contains the original columns and every filtered sample row.",
+    "where": "home how-it-works strip, export dialog, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:csv-export",
+    "sandbox": "fresh /?demo=1 context; filter North; parse downloaded CSV header and all 10 data rows"
+  },
+  {
+    "id": "parquet-export",
+    "claim": "Parquet export contains the complete filtered sample view as typed column data.",
+    "where": "home how-it-works strip, export dialog, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:parquet-export",
+    "sandbox": "fresh /?demo=1 context; filter North; parse Parquet footer, 10 rows, 11 fields, and row group"
+  },
+  {
+    "id": "supported-file-formats",
+    "claim": "Glassline opens CSV, TSV, TXT, and the first worksheet of XLSX files.",
+    "where": "home file picker, import help, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:supported-file-formats",
+    "sandbox": "start at /?demo=1, exit to blank workspace, then open deterministic CSV, TSV, TXT, and generated XLSX fixtures"
+  },
+  {
+    "id": "mobile-controls",
+    "claim": "Workspace actions fit at 390 px, meet 44 px targets, and support keyboard shortcuts.",
+    "where": "README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:mobile-controls",
+    "sandbox": "fresh /?demo=1 context at 390x844; measure action targets and spacing, check width, then use / and E shortcuts"
+  }
+]
