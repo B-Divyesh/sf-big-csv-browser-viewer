@@ -10,7 +10,7 @@ Analysts, operations teams, and finance staff who receive multi-million-row expo
 
 ## What works
 
-- Opens CSV, TSV, text, and the first worksheet of XLSX files.
+- Opens CSV, TSV, text, and the first worksheet of XLSX files, including RFC-style quoted fields with embedded LF or CRLF line breaks.
 - Reads CSV directly through the browser file handle, avoiding a duplicate in-memory copy.
 - Detects delimiters, headers, and data types, with recovery controls for inconsistent files.
 - Shows a 100-row virtual window with sorting and direct row-number jumping.
