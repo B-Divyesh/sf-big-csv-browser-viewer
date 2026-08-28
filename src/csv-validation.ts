@@ -7,6 +7,15 @@ export class CsvStructureError extends Error {
 
 type Delimiter = ',' | '\t' | ';' | '|';
 
+export interface CsvQuoteInspection {
+  /**
+   * DuckDB's parallel reader cannot combine null padding with RFC-style line
+   * breaks inside a quoted field. Keep this fact from the same streaming pass
+   * that validates the quote grammar so callers can select its safe reader.
+   */
+  hasQuotedNewline: boolean;
+}
+
 const delimiters: Delimiter[] = [',', '\t', ';', '|'];
 const quote = 0x22;
 const carriageReturn = 0x0d;
@@ -60,7 +69,7 @@ async function sniffDelimiter(file: Blob): Promise<Delimiter> {
  * The scan is byte-streamed so it does not copy a multi-gigabyte source into
  * JavaScript memory before DuckDB's browser file reader opens it.
  */
-export async function validateCsvQuotes(file: Blob, delimiter: 'auto' | Delimiter): Promise<void> {
+export async function inspectCsvQuotes(file: Blob, delimiter: 'auto' | Delimiter): Promise<CsvQuoteInspection> {
   const activeDelimiter = delimiter === 'auto' ? await sniffDelimiter(file) : delimiter;
   const separator = delimiterByte(activeDelimiter);
   const reader = file.stream().getReader();
@@ -72,6 +81,7 @@ export async function validateCsvQuotes(file: Blob, delimiter: 'auto' | Delimite
   let row = 1;
   let quoteRow = 1;
   let previousWasCarriageReturn = false;
+  let hasQuotedNewline = false;
 
   const endRecord = () => {
     row++;
@@ -88,6 +98,7 @@ export async function validateCsvQuotes(file: Blob, delimiter: 'auto' | Delimite
       previousWasCarriageReturn = byte === carriageReturn;
 
       if (inQuotes) {
+        if (byte === carriageReturn || byte === lineFeed) hasQuotedNewline = true;
         if (byte === quote) { inQuotes = false; justClosedQuote = true; }
         continue;
       }
@@ -113,4 +124,14 @@ export async function validateCsvQuotes(file: Blob, delimiter: 'auto' | Delimite
   }
 
   if (inQuotes) throw new CsvStructureError(`Unterminated quoted field beginning on row ${quoteRow}.`);
+  return { hasQuotedNewline };
+}
+
+/**
+ * Preserve the validator's small public surface for callers that only need
+ * malformed-quote rejection. Import code should use inspectCsvQuotes so it
+ * can keep quoted-newline files on DuckDB's compatible reader path.
+ */
+export async function validateCsvQuotes(file: Blob, delimiter: 'auto' | Delimiter): Promise<void> {
+  await inspectCsvQuotes(file, delimiter);
 }

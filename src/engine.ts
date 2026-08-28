@@ -4,7 +4,7 @@ import ehWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import mvpWasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import mvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import type { ColumnInfo } from './query';
-import { validateCsvQuotes } from './csv-validation';
+import { inspectCsvQuotes } from './csv-validation';
 
 type QueryRow = Record<string, unknown>;
 
@@ -123,14 +123,21 @@ export class LocalDataEngine {
     // DuckDB intentionally recovers from some malformed quote sequences. That
     // is useful for exploratory SQL, but wrong for an import UI that promises
     // a visible recovery path. Validate text sources before opening the view.
-    if (!/\.xlsx$/i.test(file.name)) await validateCsvQuotes(file, options.delimiter);
+    const quoteInspection = /\.xlsx$/i.test(file.name)
+      ? { hasQuotedNewline: false }
+      : await inspectCsvQuotes(file, options.delimiter);
     await this.initialize(progress);
     if (!this.db || !this.connection) throw new Error('The local data engine did not start.');
     await this.db.dropFile('source.csv').catch(() => undefined);
     const sourceFile = /\.xlsx$/i.test(file.name) ? await this.xlsxToCsv(file) : file;
     await this.db.registerFileHandle('source.csv', sourceFile, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
     const delimiter = options.delimiter === 'auto' ? '' : `, delim = '${options.delimiter === '\t' ? '\\t' : options.delimiter}'`;
-    const sql = `CREATE OR REPLACE VIEW data AS SELECT * FROM read_csv('source.csv', auto_detect = true, header = ${options.header}, all_varchar = ${options.allVarchar}, sample_size = 200000, null_padding = true${delimiter})`;
+    // DuckDB's parallel scanner intentionally rejects null_padding alongside
+    // quoted CR/LF fields. The validator above has already confirmed that the
+    // CSV is structurally valid, so only those files use DuckDB's compatible
+    // single-reader path; ordinary large CSVs retain parallel import speed.
+    const parallel = quoteInspection.hasQuotedNewline ? 'false' : 'true';
+    const sql = `CREATE OR REPLACE VIEW data AS SELECT * FROM read_csv('source.csv', auto_detect = true, header = ${options.header}, all_varchar = ${options.allVarchar}, sample_size = 200000, null_padding = true, parallel = ${parallel}${delimiter})`;
     await this.connection.query(sql);
     const described = tableRows(await this.connection.query('DESCRIBE data'));
     const columns = described.map((row) => ({ name: String(row.column_name), type: String(row.column_type) }));

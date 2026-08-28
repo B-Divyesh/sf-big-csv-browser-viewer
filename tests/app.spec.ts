@@ -8,6 +8,8 @@ const staticWebAppConfig = JSON.parse(readFileSync(new URL('../public/staticweba
 };
 
 const csv = `region,status,amount,date\nNorth,Won,1200,2026-01-03\nSouth,Lost,500,2026-01-04\nNorth,Won,800,2026-01-05\nWest,Open,250,2026-01-06\n`;
+const quotedMultilineCsv = 'region,note\nNorth,"first line\nsecond line"\nSouth,plain\n';
+const quotedMultilineCrlfCsv = 'region,note\r\nNorth,"first line\r\nsecond line"\r\nSouth,plain\r\n';
 
 function tinyXlsx(): Buffer {
   const files: Record<string, Uint8Array> = {
@@ -145,6 +147,20 @@ test('opens, filters, summarizes, queries and exports CSV', async ({ page }) => 
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.csv$/);
   expect(consoleErrors).toEqual([]);
+});
+
+test('opens RFC-style quoted multiline CSV fields without relaxing malformed-quote checks', async ({ page }) => {
+  for (const [name, source] of [
+    ['quoted-multiline.csv', quotedMultilineCsv],
+    ['quoted-multiline-crlf.csv', quotedMultilineCrlfCsv],
+  ]) {
+    await page.goto('/');
+    await page.locator('#file-input').setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(source) });
+    await expect(page.getByRole('heading', { name })).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator('#row-count')).toContainText('2 rows');
+    await expect(page.locator('#error-dialog')).not.toHaveAttribute('open', '');
+    await expect(page.getByRole('gridcell', { name: /first line\s+second line/ })).toBeVisible();
+  }
 });
 
 test('keeps every visible workspace action tappable at 390px', async ({ page }) => {
