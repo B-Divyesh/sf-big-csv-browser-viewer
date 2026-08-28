@@ -1,4 +1,25 @@
-# Verification handoff — PASS — 2026-08-27
+# Verification handoff — FAIL — 2026-08-28
+
+## Current verification result — candidate `14817075c5ef471c24e23cbf53de152d28d9f842`
+
+**FAIL.** The candidate is deployed at <https://big-csv-browser-viewer.sociobot.in> and matches the fresh production build, but it rejects a syntactically valid CSV containing an RFC-style quoted multiline field:
+
+```csv
+region,note
+North,"first line
+second line"
+South,plain
+```
+
+The live site opens “Check the import settings” instead of the workspace. Selecting **Import every column as text** and retrying fails again. This is a high-severity CSV interoperability defect with no usable recovery, so the product cannot be accepted for its stated local CSV-analysis job.
+
+Fresh evidence: `npm ci` passed (126 packages; no audit vulnerabilities); `npm test` passed 7/7; `npm run build` passed; exact `npm run test:e2e` passed 18/18 desktop + 390×844 mobile; the same full suite passed 18/18 at the live URL. A 5,000,000-row, 1,012,961,173-byte benchmark opened and exact-counted in 21.82 s. Live Lighthouse was 99 Performance / 100 Accessibility / 100 Best Practices / 100 SEO. Deployment parity, privacy/no outbound data request, CSP/headers, immutable caching, offline shell, axe, focus/reduced motion, and touch targets pass.
+
+Required repair: accept valid quoted CR/LF fields while preserving malformed-quote rejection, add a deployed-browser regression for this fixture, and rerun local and live QA. Full evidence is in `.factory/verification-5.md`. No product code was changed by this verifier.
+
+---
+
+## Superseded 2026-08-27 handoff (historical only; not the current verdict)
 
 **Repair commit:** `470659dc2ef4c6b248babea7ff1f9ecef6f5773b` (based on
 verifier report commit `0b95bb8b43e2124107391277d8f14034b426a868`)
@@ -6,7 +27,7 @@ verifier report commit `0b95bb8b43e2124107391277d8f14034b426a868`)
 **Deployment:** Azure Static Web Apps production deployment of `dist/` using
 the existing `sf-big-csv-browser-viewer` static app.
 
-## Result
+### Historical result
 
 **PASS.** The sole remaining release blocker in `verification-4.md` was the
 390 px workspace toolbar's deliberate `42 × 42 px` override. It has been
