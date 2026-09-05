@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:claims": "playwright test --project=desktop --grep @claim:"
+    "test:claims": "playwright test --project=desktop --grep @claim: && npm run test:large-file",
+    "test:large-file": "GLASSLINE_RUN_LARGE_CLAIM=1 playwright test --project=desktop --grep @claim:large-file"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.30.0",

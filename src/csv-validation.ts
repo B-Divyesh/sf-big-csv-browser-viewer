@@ -82,11 +82,20 @@ export async function inspectCsvQuotes(file: Blob, delimiter: 'auto' | Delimiter
   let quoteRow = 1;
   let previousWasCarriageReturn = false;
   let hasQuotedNewline = false;
+  let fieldCount = 1;
+  let expectedFieldCount: number | null = null;
+  let recordHasValue = false;
 
   const endRecord = () => {
+    if (recordHasValue) {
+      if (expectedFieldCount === null) expectedFieldCount = fieldCount;
+      else if (fieldCount !== expectedFieldCount) throw new CsvStructureError(`Row ${row} has ${fieldCount} columns; the first row has ${expectedFieldCount}.`);
+    }
     row++;
     fieldStart = true;
     justClosedQuote = false;
+    fieldCount = 1;
+    recordHasValue = false;
   };
 
   while (true) {
@@ -100,30 +109,34 @@ export async function inspectCsvQuotes(file: Blob, delimiter: 'auto' | Delimiter
       if (inQuotes) {
         if (byte === carriageReturn || byte === lineFeed) hasQuotedNewline = true;
         if (byte === quote) { inQuotes = false; justClosedQuote = true; }
+        recordHasValue = true;
         continue;
       }
 
       if (justClosedQuote) {
         if (byte === quote) { inQuotes = true; justClosedQuote = false; continue; }
-        if (byte === separator) { fieldStart = true; justClosedQuote = false; continue; }
+        if (byte === separator) { fieldStart = true; justClosedQuote = false; fieldCount++; recordHasValue = true; continue; }
         if (byte === carriageReturn || byte === lineFeed) { endRecord(); continue; }
         throw new CsvStructureError(`Unexpected text after a closing quote on row ${row}.`);
       }
 
       if (byte === carriageReturn || byte === lineFeed) { endRecord(); continue; }
-      if (byte === separator) { fieldStart = true; continue; }
+      if (byte === separator) { fieldStart = true; fieldCount++; recordHasValue = true; continue; }
       if (byte === quote) {
         if (!fieldStart) throw new CsvStructureError(`Unexpected quote inside an unquoted field on row ${row}.`);
         inQuotes = true;
         quoteRow = row;
         fieldStart = false;
+        recordHasValue = true;
         continue;
       }
       fieldStart = false;
+      recordHasValue = true;
     }
   }
 
   if (inQuotes) throw new CsvStructureError(`Unterminated quoted field beginning on row ${quoteRow}.`);
+  if (recordHasValue) endRecord();
   return { hasQuotedNewline };
 }
 

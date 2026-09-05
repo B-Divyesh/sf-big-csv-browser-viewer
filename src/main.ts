@@ -51,21 +51,21 @@ app.innerHTML = `
     <section class="landing" id="landing" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="eyebrow"><span></span> Runs on this device</p>
-        <h1 id="hero-title">Filter large CSV files<br><em>in your browser.</em></h1>
-        <p class="lede">For analysts handling exports too large for Excel, find and export the rows you need.</p>
+        <h1 id="hero-title" tabindex="-1">Open 5-million-row CSV files<br><em>in your browser.</em></h1>
+        <p class="lede">For analysts with files a spreadsheet app cannot open, find and export the rows you need.</p>
         <div class="hero-actions">
           <a class="demo-action" href="/?demo=1">Try it with sample data</a>
-          <span>Opens a 40-row order file in the real workspace.</span>
+          <span>Opens 40 sample orders in the full CSV viewer.</span>
         </div>
-        <label class="drop-zone" id="drop-zone" tabindex="0">
+        <label class="drop-zone" id="drop-zone">
           <input id="file-input" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/tab-separated-values,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
           <span class="drop-icon">${icon('upload')}</span>
           <span><strong>Open your own file</strong><small>Drop or choose CSV, TSV, TXT, or XLSX</small></span>
-          <span class="choose-file">Open your CSV</span>
+          <span class="choose-file">Open a data file</span>
         </label>
         <div class="trust-row" aria-label="Product qualities">
           <span>${icon('shield')} File stays in this tab</span>
-          <span>Works offline after the first visit</span>
+          <span>Sample works offline after the first visit</span>
           <span>Free to use</span>
         </div>
       </div>
@@ -77,7 +77,7 @@ app.innerHTML = `
         <figcaption><span>Filter · Pivot · Query</span><span>Processed on this device</span></figcaption>
       </figure>
       <div class="how-strip">
-        <p><span>01</span><strong>Open your CSV</strong><small>Choose the file you received.</small></p>
+        <p><span>01</span><strong>Open a data file</strong><small>Choose the file you received.</small></p>
         <p><span>02</span><strong>Filter and summarize rows</strong><small>Sort, group, pivot, or query.</small></p>
         <p><span>03</span><strong>Export selected rows</strong><small>Download CSV or Parquet.</small></p>
       </div>
@@ -130,8 +130,8 @@ app.innerHTML = `
   </main>
 
   <footer class="site-footer" id="site-footer">
-    <p>Filter large CSV files in your browser.</p>
-    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.1 · Original AI-generated artwork</span></p>
+    <p>Open 5-million-row CSV files in your browser.</p>
+    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.2 · Original AI-generated artwork</span></p>
   </footer>
 
   <div class="loading-layer" id="loading-layer" hidden role="status" aria-live="assertive">
@@ -239,7 +239,7 @@ function replaceHeading(id: string, level: 1 | 2): HTMLElement {
 }
 
 function setRouteMetadata(isDemo: boolean): void {
-  const title = isDemo ? 'Demo — Glassline' : 'Glassline — Filter large CSV files in your browser';
+  const title = isDemo ? 'Demo — Glassline' : 'Glassline — Open 5-million-row CSV files';
   const canonical = isDemo ? 'https://big-csv-browser-viewer.sociobot.in/demo' : 'https://big-csv-browser-viewer.sociobot.in/';
   document.title = title;
   document.querySelector<HTMLLinkElement>('link[rel="canonical"]')!.href = canonical;
@@ -340,6 +340,15 @@ function enterWorkspace(file: File): void {
   $('#route-status').textContent = `${file.name} workspace opened`;
   workspaceTitle.focus();
   updateNetwork();
+}
+
+function focusCurrentRoute(): void {
+  const heading = workspace.hidden ? document.querySelector<HTMLElement>('#hero-title') : document.querySelector<HTMLElement>('#workspace-title');
+  if (!heading) return;
+  window.requestAnimationFrame(() => {
+    heading.focus({ preventScroll: true });
+    $('#route-status').textContent = workspace.hidden ? 'Glassline home loaded' : `${heading.textContent} workspace loaded`;
+  });
 }
 
 function renderColumns(search = ''): void {
@@ -577,7 +586,6 @@ async function resetDemo(): Promise<void> {
 }
 
 fileInput.addEventListener('change', () => { const file = fileInput.files?.[0]; if (file) void openFile(file); });
-dropZone.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInput.click(); } });
 ['dragenter', 'dragover'].forEach((name) => dropZone.addEventListener(name, (event) => { event.preventDefault(); dropZone.classList.add('dragging'); }));
 ['dragleave', 'drop'].forEach((name) => dropZone.addEventListener(name, (event) => { event.preventDefault(); dropZone.classList.remove('dragging'); }));
 dropZone.addEventListener('drop', (event) => { const file = (event as DragEvent).dataTransfer?.files[0]; if (file) void openFile(file); });
@@ -634,6 +642,12 @@ async function prepareServiceWorker(): Promise<void> {
 }
 
 setRouteMetadata(demoMode);
+window.addEventListener('pageshow', () => {
+  if (!demoMode) focusCurrentRoute();
+});
+window.addEventListener('load', () => {
+  if (!demoMode) focusCurrentRoute();
+}, { once: true });
 if (demoMode) {
   $('#demo-banner').hidden = false;
   document.body.classList.add('demo-mode');

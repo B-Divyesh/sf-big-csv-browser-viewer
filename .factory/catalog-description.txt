@@ -1,1 +1,1 @@
-Filter, pivot, query, and export large CSV files entirely in your browser.
+Open, filter, and export five-million-row CSV files in your browser.

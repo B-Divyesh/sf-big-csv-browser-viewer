@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { strToU8, zipSync } from 'fflate';
-import { readFileSync } from 'node:fs';
+import { createWriteStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { once } from 'node:events';
 
 const staticWebAppConfig = JSON.parse(readFileSync(new URL('../public/staticwebapp.config.json', import.meta.url), 'utf8')) as {
   globalHeaders: { 'Content-Security-Policy': string };
@@ -10,6 +11,21 @@ const staticWebAppConfig = JSON.parse(readFileSync(new URL('../public/staticweba
 const csv = `region,status,amount,date\nNorth,Won,1200,2026-01-03\nSouth,Lost,500,2026-01-04\nNorth,Won,800,2026-01-05\nWest,Open,250,2026-01-06\n`;
 const quotedMultilineCsv = 'region,note\nNorth,"first line\nsecond line"\nSouth,plain\n';
 const quotedMultilineCrlfCsv = 'region,note\r\nNorth,"first line\r\nsecond line"\r\nSouth,plain\r\n';
+const largeFileRows = 5_000_000;
+const largeFilePadding = 150;
+const largeFilePath = `/tmp/glassline-${largeFileRows}-rows-${largeFilePadding}-pad.csv`;
+
+async function ensureLargeFile(): Promise<void> {
+  if (existsSync(largeFilePath)) return;
+  const output = createWriteStream(largeFilePath);
+  output.write('row_id,region,status,amount,event_date,reference\n');
+  for (let index = 1; index <= largeFileRows; index++) {
+    const row = `${index},Region ${index % 25},${index % 3 ? 'Open' : 'Closed'},${(index % 100000) / 100},2026-01-${String((index % 28) + 1).padStart(2, '0')},REF-${index}${'x'.repeat(largeFilePadding)}\n`;
+    if (!output.write(row)) await once(output, 'drain');
+  }
+  output.end();
+  await once(output, 'finish');
+}
 
 function tinyXlsx(): Buffer {
   const files: Record<string, Uint8Array> = {
@@ -86,15 +102,84 @@ async function openDemo(page: import('@playwright/test').Page): Promise<void> {
   await expect(page.locator('#row-count')).toContainText('40 rows');
 }
 
+async function storedMarkerLocations(page: import('@playwright/test').Page, marker: string): Promise<string[]> {
+  return page.evaluate(async (needle) => {
+    const encode = new TextEncoder().encode(needle);
+    const bytesInclude = (bytes: Uint8Array) => {
+      outer: for (let offset = 0; offset <= bytes.length - encode.length; offset += 1) {
+        for (let index = 0; index < encode.length; index += 1) if (bytes[offset + index] !== encode[index]) continue outer;
+        return true;
+      }
+      return false;
+    };
+    const locations: string[] = [];
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index) ?? '';
+        if (key.includes(needle) || (storage.getItem(key) ?? '').includes(needle)) locations.push(storage === localStorage ? `localStorage:${key}` : `sessionStorage:${key}`);
+      }
+    }
+
+    for (const cacheName of await caches.keys()) {
+      const cache = await caches.open(cacheName);
+      for (const request of await cache.keys()) {
+        const response = await cache.match(request);
+        if (response && bytesInclude(new Uint8Array(await response.clone().arrayBuffer()))) locations.push(`cache:${cacheName}:${new URL(request.url).pathname}`);
+      }
+    }
+
+    const walkDirectory = async (directory: FileSystemDirectoryHandle, prefix = ''): Promise<void> => {
+      for await (const entry of directory.values()) {
+        const path = `${prefix}/${entry.name}`;
+        if (entry.kind === 'directory') await walkDirectory(entry, path);
+        else if (bytesInclude(new Uint8Array(await (await (entry as FileSystemFileHandle).getFile()).arrayBuffer()))) locations.push(`opfs:${path}`);
+      }
+    };
+    if (navigator.storage?.getDirectory) await walkDirectory(await navigator.storage.getDirectory());
+
+    for (const database of await indexedDB.databases()) {
+      if (!database.name) continue;
+      await new Promise<void>((resolve) => {
+        const request = indexedDB.open(database.name!);
+        request.onerror = () => resolve();
+        request.onsuccess = () => {
+          const db = request.result;
+          const names = [...db.objectStoreNames];
+          if (!names.length) { db.close(); resolve(); return; }
+          const transaction = db.transaction(names, 'readonly');
+          for (const name of names) {
+            const read = transaction.objectStore(name).getAll();
+            read.onsuccess = () => {
+              const serialized = JSON.stringify(read.result, (_, value) => value instanceof Blob || value instanceof File ? `[binary:${value.size}]` : value);
+              if (serialized.includes(needle)) locations.push(`indexedDB:${database.name}:${name}`);
+            };
+          }
+          transaction.oncomplete = () => { db.close(); resolve(); };
+          transaction.onerror = () => { db.close(); resolve(); };
+        };
+      });
+    }
+    return locations;
+  }, marker);
+}
+
 test('landing page is accessible and responsive', async ({ page }) => {
   const response = await page.goto('/');
   // Vite preview serves this exact production policy (see vite.config.ts), so
   // the successful DuckDB tests below prove the live browser CSP permits WASM.
   expect(response?.headers()['content-security-policy']).toBe(staticWebAppConfig.globalHeaders['Content-Security-Policy']);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Filter large CSV files');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Open 5-million-row CSV files');
   await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
+});
+
+test('the file picker has one keyboard stop', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').focus();
+  await expect(page.locator('#file-input')).toBeFocused();
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.activeElement?.id)).not.toBe('drop-zone');
 });
 
 test('@claim:offline-reload reopens the sample workspace offline after the first visit', async ({ page, context }) => {
@@ -147,6 +232,9 @@ test('@claim:core-workflow filters, summarizes, pivots and queries the sample fi
 
   await page.getByRole('button', { name: 'SQL query' }).click();
   const sqlDialog = page.getByRole('dialog', { name: 'Query with SQL' });
+  await sqlDialog.locator('textarea').fill('DELETE FROM data');
+  await sqlDialog.getByRole('button', { name: 'Run query' }).click();
+  await expect(sqlDialog.locator('#sql-status')).toContainText('Use one read-only SELECT');
   await sqlDialog.locator('textarea').fill('SELECT region, SUM(revenue) AS total FROM data GROUP BY region ORDER BY total DESC');
   await sqlDialog.getByRole('button', { name: 'Run query' }).click();
   await expect(sqlDialog.getByRole('cell', { name: '17131' })).toBeVisible();
@@ -172,7 +260,7 @@ test('@claim:demo-sandbox opens 40 sample orders, saves nothing and resets clean
   await expect(page.getByRole('button', { name: 'Filter rows' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Export view' })).toBeEnabled();
   await banner.getByRole('link', { name: 'Start for real' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: /Filter large CSV files/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeVisible();
   await expect(banner).toBeHidden();
 });
 
@@ -205,6 +293,68 @@ test('@claim:local-processing keeps the complete demo workflow on the site origi
     return paths;
   });
   expect(cachedPaths.some((path) => path.includes('glassline-export') || path.includes('source.csv'))).toBe(false);
+});
+
+test('@claim:real-file-storage clears a selected file and its export when the tab closes', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const marker = `PRIVATE-FILE-CHECK-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  try {
+    await page.goto(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173');
+    await page.locator('#file-input').setInputFiles({
+      name: 'private-orders.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(`id,note\n1,${marker}\n2,ordinary note\n`),
+    });
+    await expect(page.getByRole('heading', { level: 1, name: 'private-orders.csv' })).toBeVisible({ timeout: 45_000 });
+    await page.getByRole('button', { name: 'Export view' }).click();
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export file' }).click();
+    await downloadPromise;
+    expect(await storedMarkerLocations(page, marker)).toEqual([]);
+
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeVisible();
+    expect(await storedMarkerLocations(page, marker)).toEqual([]);
+
+    await page.close();
+    const reopened = await context.newPage();
+    await reopened.goto(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173');
+    await expect(reopened.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeVisible();
+    expect(await storedMarkerLocations(reopened, marker)).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
+
+test('@claim:import-recovery retries a separator mismatch with the chosen separator', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({
+    name: 'mixed-separators.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('region,area,comment;amount\nNorth,East,urgent;1200\nSouth;500\n'),
+  });
+  const dialog = page.getByRole('dialog', { name: 'Check the import settings' });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  await dialog.getByLabel('Delimiter').selectOption(';');
+  await dialog.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'mixed-separators.csv' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('#row-count')).toContainText('2 rows');
+  await expect(page.getByRole('gridcell', { name: 'North,East,urgent' })).toBeVisible();
+});
+
+test('@claim:large-file opens and counts a 5-million-row, about 1 GB CSV within 30 seconds', async ({ page }) => {
+  test.skip(process.env.GLASSLINE_RUN_LARGE_CLAIM !== '1', 'Run the large-file claim through its dedicated command.');
+  test.setTimeout(180_000);
+  await ensureLargeFile();
+  const bytes = statSync(largeFilePath).size;
+  expect(bytes).toBeGreaterThan(1_000_000_000);
+  await page.goto('/');
+  const started = performance.now();
+  await page.locator('#file-input').setInputFiles(largeFilePath);
+  await expect(page.getByRole('heading', { level: 1, name: /glassline-5000000-rows-150-pad\.csv/ })).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator('#row-count')).toContainText('5,000,000 rows', { timeout: 120_000 });
+  expect((performance.now() - started) / 1000).toBeLessThan(30);
 });
 
 test('@claim:csv-export exports only filtered sample rows with the original columns', async ({ page }) => {
@@ -261,6 +411,8 @@ test('@claim:mobile-controls keeps every workspace action tappable at 390px', as
   await page.keyboard.press('/');
   await expect(page.getByRole('dialog', { name: 'Filter rows' })).toBeVisible();
   await page.keyboard.press('Escape');
+  await page.keyboard.press('g');
+  await expect(page.locator('#grid-scroll')).toBeFocused();
   await page.keyboard.press('e');
   await expect(page.getByRole('dialog', { name: 'Export this view' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
@@ -331,25 +483,32 @@ test('@claim:supported-file-formats opens CSV, TSV, TXT and the first XLSX works
   await page.locator('#file-input').setInputFiles(files[0]);
   await expect(page.getByRole('heading', { level: 1, name: 'orders.csv' })).toBeVisible({ timeout: 45_000 });
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: /Filter large CSV files/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeVisible();
 });
 
 test('routes have unique metadata, shared navigation, focus and a designed 404', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('Glassline — Filter large CSV files in your browser');
+  await expect(page).toHaveTitle('Glassline — Open 5-million-row CSV files');
+  await expect(page.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeFocused();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://big-csv-browser-viewer.sociobot.in/');
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /glassline-social\.jpg$/);
   await page.getByRole('link', { name: 'Try it with sample data' }).click();
   await expect(page).toHaveTitle('Demo — Glassline');
   await expect(page.getByRole('heading', { level: 1, name: 'sample-orders.csv' })).toBeFocused({ timeout: 45_000 });
-  await page.goto('/demo');
+  await page.goBack();
+  await expect(page).toHaveTitle('Glassline — Open 5-million-row CSV files');
+  await expect(page.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeFocused();
+  await expect(page.locator('#route-status')).toContainText('Glassline home loaded');
+  await page.goForward();
   await expect(page).toHaveTitle('Demo — Glassline');
-  await expect(page.locator('#row-count')).toContainText('40 rows', { timeout: 45_000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'sample-orders.csv' })).toBeFocused({ timeout: 45_000 });
 
-  for (const route of ['/privacy/', '/terms/']) {
-    await page.goto(route);
+  for (const linkName of ['Privacy', 'Terms']) {
+    await page.getByRole('link', { name: linkName, exact: true }).first().click();
     await expect(page.locator('main')).toBeVisible();
     await expect(page.locator('h1')).toHaveCount(1);
+    await expect(page.locator('h1')).toBeFocused();
+    await expect(page.locator('#route-status')).toContainText('loaded');
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
     await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
     await expect(page.getByRole('link', { name: 'Demo' })).toBeVisible();

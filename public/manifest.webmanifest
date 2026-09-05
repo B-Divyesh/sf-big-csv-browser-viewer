@@ -1,7 +1,7 @@
 {
   "name": "Glassline — Big CSV viewer",
   "short_name": "Glassline",
-  "description": "Open, filter and pivot huge CSVs locally.",
+  "description": "Open, filter and export CSV files in your browser.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#07110f",

@@ -1,15 +1,15 @@
 [
   {
     "id": "demo-sandbox",
-    "claim": "Glassline is free to use without an account; its 40-order demo saves no workspace data, resets, and exits to a blank real workspace.",
+    "claim": "Glassline is free to use without an account; its 40-order demo saves no workspace data, resets, and exits to a blank file-opening screen.",
     "where": "home first screen, demo banner, README, terms",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:demo-sandbox",
     "sandbox": "fresh browser context at /?demo=1; mutate a filter; assert 40-row reset, empty web storage, no sign-in, and blank real exit"
   },
   {
     "id": "local-processing",
-    "claim": "Files, filters, queries, and exports are processed in the browser with only same-origin runtime requests.",
-    "where": "home facts and artwork caption, privacy page, README",
+    "claim": "Files, filters, queries, and exports run in the browser, and the tested demo sends requests only to this site.",
+    "where": "home facts and artwork caption, privacy page, README, workspace export dialog",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:local-processing",
     "sandbox": "fresh /?demo=1 context; intercept requests across filter, summary, SQL, and CSV export; inspect offline cache"
   },
@@ -54,5 +54,26 @@
     "where": "README",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:mobile-controls",
     "sandbox": "fresh /?demo=1 context at 390x844; measure action targets and spacing, check width, then use / and E shortcuts"
+  },
+  {
+    "id": "real-file-storage",
+    "claim": "Glassline does not store a file you choose or its export; refreshing or closing the tab clears the active workspace.",
+    "where": "home fact, privacy page, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:real-file-storage",
+    "sandbox": "fresh browser context; open a uniquely marked local file, export it, inspect browser stores and caches, refresh, close the tab, reopen, and inspect again"
+  },
+  {
+    "id": "import-recovery",
+    "claim": "Glassline reads UTF-8 CSV files and can retry a separator mismatch with the separator you choose.",
+    "where": "import help, README",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:import-recovery",
+    "sandbox": "fresh browser context; open a UTF-8 file whose automatic separator gives inconsistent columns, choose semicolon, retry, and assert both rows open"
+  },
+  {
+    "id": "large-file",
+    "claim": "Glassline opens and counts a 5,000,000-row, about 1 GB CSV within 30 seconds in the Chromium benchmark environment.",
+    "where": "home, legal, and 404 footers; metadata; README",
+    "test": "npm run test:large-file",
+    "sandbox": "dedicated fresh Chromium project; generate the 5,000,000-row test file outside the repository, assert its size exceeds 1 GB, then open and count it within 30 seconds"
   }
 ]

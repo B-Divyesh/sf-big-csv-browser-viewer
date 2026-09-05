@@ -27,4 +27,13 @@ describe('CSV quote validation', () => {
       message: 'Unexpected text after a closing quote on row 2.',
     });
   });
+
+  it('reports a separator mismatch and accepts the explicit separator retry', async () => {
+    const source = csv('region,area,comment;amount\nNorth,East,urgent;1200\nSouth;500\n');
+    await expect(validateCsvQuotes(source, 'auto')).rejects.toMatchObject({
+      name: 'CsvStructureError',
+      message: 'Row 3 has 1 columns; the first row has 3.',
+    });
+    await expect(validateCsvQuotes(source, ';')).resolves.toBeUndefined();
+  });
 });

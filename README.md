@@ -1,6 +1,6 @@
 # Glassline
 
-Filter, summarize, query, and export large CSV files in your browser. Glassline is for analysts working beyond spreadsheet limits.
+Open, filter, summarize, query, and export 5-million-row CSV files in your browser. Glassline is for analysts with files a spreadsheet app cannot open.
 
 Live product: <https://big-csv-browser-viewer.sociobot.in>
 
@@ -8,7 +8,7 @@ Demo: <https://big-csv-browser-viewer.sociobot.in/?demo=1>
 
 ## Who it is for
 
-For analysts who receive spreadsheet exports too large for Excel and need a quick answer.
+For analysts who receive files a spreadsheet app cannot open and need a quick answer.
 
 ## What it does
 
@@ -18,15 +18,15 @@ For analysts who receive spreadsheet exports too large for Excel and need a quic
 - Opens 40 sample orders without an account and resets them on demand.
 - Keeps workspace actions usable at 390 px and supports `/`, `g`, and `e` keyboard shortcuts.
 
-The sample route uses the real workspace. See [.factory/demo.md](.factory/demo.md) for its data and isolation model.
+The sample route uses the full CSV viewer. See [.factory/demo.md](.factory/demo.md) for its data and isolation model.
 
 ## Privacy and offline use
 
-File processing happens in browser memory. The tested demo flow makes same-origin runtime requests only.
+Files, filters, queries, and exports run in the browser. During the tested demo, every network request stays on this site.
 
-The offline cache stores app files and the public sample. It does not store files you choose or their results.
+The offline cache stores app files and the public sample. After one completed visit, the sample workspace can reopen offline.
 
-After one completed visit, the sample workspace can reopen offline. Refreshing the real workspace clears its active file.
+Glassline does not store a file you choose or its export. Refreshing or closing the tab clears the active workspace.
 
 See the [privacy page](https://big-csv-browser-viewer.sociobot.in/privacy/).
 
@@ -48,26 +48,25 @@ npm run test:e2e
 npm run test:claims
 ```
 
-Each reliance claim and its exact command is recorded in [.factory/claims.json](.factory/claims.json).
+Each product promise and its test command appears in [.factory/claims.json](.factory/claims.json).
 
-The optional large-file benchmark generates its fixture outside the repository:
+The large-file claim creates its test file outside the repository:
 
 ```sh
-npm run preview -- --port 4173
-GLASSLINE_BENCH_PAD=150 node scripts/benchmark-large.mjs
+npm run test:large-file
 ```
+
+It opens and counts 5,000,000 rows in an about 1 GB CSV within 30 seconds in the Chromium benchmark environment.
 
 ## Build and deploy
 
 Run `npm ci && npm test && npm run build`. Deploy the contents of `dist/` as an Azure Static Web App.
 
-The static-site configuration applies security headers, caches versioned assets, routes `/demo`, and serves the designed 404 page.
-
 ## Practical limits
 
 Browser memory sets the file-size ceiling. Very large files may fail.
 
-Glassline expects UTF-8 text. Use the import recovery controls for inconsistent delimiters or column types.
+Use UTF-8 CSV files. If the separator is wrong, choose the file’s separator and retry.
 
 ## License
 
