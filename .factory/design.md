@@ -65,3 +65,9 @@ Production prompt: “Use case: stylized-concept. Asset type: wide landing-page 
 - License/provenance: original generated artwork commissioned for this product; retained source PNG and prompt sidecar under `assets/src/`.
 - Product icons are original inline SVG paths authored in the codebase. No third-party image, icon, font, or script is loaded at runtime.
 - The 1200×630 social preview and 180×180 touch icon are crops of the original generated data-landscape artwork. They add no third-party source material.
+
+## Landing disclosure and route chrome
+
+The privacy and limits section continues the grid language with three ruled text columns instead of generic cards. It follows the three task steps and keeps the practical boundary visible before the footer. On phones, those columns become a single ordered stack.
+
+The populated viewer keeps a viewport-height data area. Its standard site footer remains next in document flow, so demo and real-file users can reach legal links without reducing the working grid. Dialogs use one literal task heading, and the 404 uses a direct recovery message.

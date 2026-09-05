@@ -9,14 +9,14 @@
   {
     "id": "local-processing",
     "claim": "Files, filters, queries, and exports run in the browser, and the tested demo sends requests only to this site.",
-    "where": "home facts and artwork caption, privacy page, README, workspace export dialog",
+    "where": "home facts, landing privacy and limits section, artwork caption, privacy page, README, workspace export dialog",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:local-processing",
     "sandbox": "fresh /?demo=1 context; intercept requests across filter, summary, SQL, and CSV export; inspect offline cache"
   },
   {
     "id": "offline-reload",
     "claim": "The sample workspace works offline after the first visit.",
-    "where": "home facts, privacy page, README",
+    "where": "home facts, landing privacy and limits section, privacy page, README",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:offline-reload",
     "sandbox": "fresh /?demo=1 context; wait for service worker, go offline, reload, and assert 40 sample rows"
   },
@@ -57,10 +57,10 @@
   },
   {
     "id": "real-file-storage",
-    "claim": "Glassline does not store a file you choose or its export; refreshing or closing the tab clears the active workspace.",
-    "where": "home fact, privacy page, README",
+    "claim": "Glassline has no cloud save or collaboration; it does not store a file you choose or its export, and refreshing or closing clears the workspace.",
+    "where": "home fact, landing privacy and limits section, privacy page, README",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:real-file-storage",
-    "sandbox": "fresh browser context; open a uniquely marked local file, export it, inspect browser stores and caches, refresh, close the tab, reopen, and inspect again"
+    "sandbox": "fresh browser context; open and export a uniquely marked file; assert GET-only same-origin requests, no web sockets, empty browser stores, and a blank workspace after refresh and tab close"
   },
   {
     "id": "import-recovery",

@@ -1,4 +1,4 @@
-const CACHE = 'glassline-shell-v4';
+const CACHE = 'glassline-shell-v5';
 const SHELL = ['/manifest.webmanifest', '/icon.svg', '/apple-touch-icon.png', '/assets/data-landscape.avif', '/assets/data-landscape.webp', '/assets/glassline-social.jpg', '/sample-orders.csv'];
 
 self.addEventListener('install', (event) => {

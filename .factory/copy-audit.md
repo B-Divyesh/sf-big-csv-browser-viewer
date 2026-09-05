@@ -1,6 +1,6 @@
 # Copy audit
 
-Audited September 5, 2026. Counts treat hyphenated terms, paths, URLs, and keyboard keys as one word. No sentence exceeds 22 words. No banned marketing terms remain.
+Audited September 5, 2026 after repair 7. Counts treat hyphenated terms, paths, URLs, and keyboard keys as one word. No sentence exceeds 22 words. No banned marketing terms, mood headings, or metaphorical labels remain.
 
 ## Landing page
 
@@ -29,9 +29,71 @@ Audited September 5, 2026. Counts treat hyphenated terms, paths, URLs, and keybo
 | Sort, group, pivot, or query. | 5 | Pass; core-workflow |
 | Export selected rows | 3 | Pass; csv-export and parquet-export |
 | Download CSV or Parquet. | 4 | Pass; export claims |
+| Privacy and limits | 3 | Pass; section names its content |
+| Read the privacy details | 4 | Pass; destination-naming link |
+| Your file stays in this tab | 6 | Pass; real-file-storage |
+| Closing or refreshing clears the active workspace. | 7 | Pass; real-file-storage |
+| Cloud save and collaboration are not available. | 7 | Pass; real-file-storage |
+| The cache holds the public sample | 6 | Pass; offline-reload |
+| It stores app files and the sample. | 7 | Pass; offline-reload |
+| It does not store a file you choose or an export. | 11 | Pass; real-file-storage |
+| Browser memory limits file size | 5 | Pass; practical limit |
+| Very large files may fail. | 5 | Pass; practical limit |
 | Open 5-million-row CSV files in your browser. | 6 | Pass; large-file |
 | Built by Param Factory | 4 | Pass |
-| v1.2 · Original AI-generated artwork | 4 | Pass; version and provenance |
+| v1.3 · Original AI-generated artwork | 4 | Pass; version and provenance |
+
+## Dialogs
+
+The dialog name is its single literal task heading. No secondary mood label is present.
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| Filter rows | 2 | Pass; direct task |
+| Add another condition | 3 | Pass; result-naming action |
+| Apply filters | 2 | Pass; result-naming action |
+| Group and pivot | 3 | Pass; direct task |
+| Group | 1 | Pass; tab name |
+| Pivot | 1 | Pass; tab name |
+| Group rows by | 3 | Pass; field label |
+| Calculate | 1 | Pass; field label |
+| Using column | 2 | Pass; field label |
+| Run summary | 2 | Pass; result-naming action |
+| Choose fields, then run a summary. | 6 | Pass; next step |
+| Results are capped at 500 rows and 20 pivot columns. | 10 | Pass; boundary explanation |
+| Query with SQL | 3 | Pass; direct task |
+| DuckDB SQL · table name is data | 6 | Pass; field label |
+| Read-only statements only. | 3 | Pass; input limit |
+| Display is capped at 1,000 rows. | 7 | Pass; boundary explanation |
+| Run query | 2 | Pass; result-naming action |
+| Export this view | 3 | Pass; direct task |
+| All rows in the current view will be exported. | 9 | Pass; export scope |
+| Best for spreadsheets | 3 | Pass; format help |
+| Smaller, typed data | 3 | Pass; format help |
+| Created entirely on this device | 5 | Pass; local-processing |
+| Export file | 2 | Pass; result-naming action |
+| Check the import settings | 4 | Pass; direct recovery task |
+| Glassline expects UTF-8 text. | 4 | Pass; import-recovery |
+| XLSX reads the first worksheet. | 5 | Pass; supported-file-formats |
+| Choose another file | 3 | Pass; recovery action |
+| Try again | 2 | Pass; recovery action |
+| Local engine could not start | 5 | Pass; specific error heading |
+| Glassline could not start its on-device data engine. | 8 | Pass; specific error |
+| Nothing was uploaded. | 3 | Pass; local-processing |
+| Check that this browser allows WebAssembly, then try again. | 9 | Pass; recovery step |
+| Retry engine | 2 | Pass; recovery action |
+
+## Not-found page
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| Page not found | 3 | Pass; literal status |
+| The address does not match a Glassline page. | 8 | Pass; specific explanation |
+| Return to the CSV viewer | 5 | Pass; destination-naming action |
+| Try the sample data | 4 | Pass; result-naming action |
+| Open 5-million-row CSV files in your browser. | 6 | Pass; large-file |
+| Built by Param Factory | 4 | Pass |
+| v1.3 | 1 | Pass; version |
 
 ## README
 

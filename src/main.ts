@@ -83,6 +83,18 @@ app.innerHTML = `
       </div>
     </section>
 
+    <section class="privacy-limits" id="privacy-limits" aria-labelledby="privacy-limits-title">
+      <div class="privacy-limits-heading">
+        <h2 id="privacy-limits-title">Privacy and limits</h2>
+        <a href="/privacy/">Read the privacy details</a>
+      </div>
+      <ul>
+        <li><strong>Your file stays in this tab</strong><span>Closing or refreshing clears the active workspace. Cloud save and collaboration are not available.</span></li>
+        <li><strong>The cache holds the public sample</strong><span>It stores app files and the sample. It does not store a file you choose or an export.</span></li>
+        <li><strong>Browser memory limits file size</strong><span>Very large files may fail.</span></li>
+      </ul>
+    </section>
+
     <section class="workspace" id="workspace" hidden aria-labelledby="workspace-title">
       <div class="file-bar">
         <div class="file-identity">
@@ -91,7 +103,7 @@ app.innerHTML = `
         </div>
         <div class="tool-bar" aria-label="Data tools">
           <button id="open-filter" aria-label="Filter rows">${icon('filter')}<span>Filter</span><kbd>/</kbd></button>
-          <button id="open-analysis" aria-label="Group and pivot">${icon('pivot')}<span>Group & pivot</span></button>
+          <button id="open-analysis" aria-label="Group and pivot">${icon('pivot')}<span>Group and pivot</span></button>
           <button id="open-sql" aria-label="SQL query">${icon('sql')}<span>SQL</span></button>
           <button class="primary" id="open-export" aria-label="Export view">${icon('export')}<span>Export</span><kbd>E</kbd></button>
         </div>
@@ -131,7 +143,7 @@ app.innerHTML = `
 
   <footer class="site-footer" id="site-footer">
     <p>Open 5-million-row CSV files in your browser.</p>
-    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.2 · Original AI-generated artwork</span></p>
+    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.3 · Original AI-generated artwork</span></p>
   </footer>
 
   <div class="loading-layer" id="loading-layer" hidden role="status" aria-live="assertive">
@@ -142,7 +154,7 @@ app.innerHTML = `
 
   <dialog id="filter-dialog" aria-labelledby="filter-title">
     <form method="dialog" class="dialog-shell" id="filter-form">
-      <div class="dialog-header"><div><p class="eyebrow">Shape the view</p><h2 id="filter-title">Filter rows</h2></div><button class="icon-button" value="cancel" aria-label="Close filters">${icon('close')}</button></div>
+      <div class="dialog-header"><h2 id="filter-title">Filter rows</h2><button class="icon-button" value="cancel" aria-label="Close filters">${icon('close')}</button></div>
       <div id="filter-list" class="filter-list"></div>
       <button type="button" class="ghost add-rule" id="add-filter">+ Add another condition</button>
       <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button value="apply" class="primary" id="apply-filter">Apply filters</button></div>
@@ -151,7 +163,7 @@ app.innerHTML = `
 
   <dialog id="analysis-dialog" aria-labelledby="analysis-title">
     <form method="dialog" class="dialog-shell wide" id="analysis-form">
-      <div class="dialog-header"><div><p class="eyebrow">Summarize locally</p><h2 id="analysis-title">Group & pivot</h2></div><button class="icon-button" value="cancel" aria-label="Close analysis">${icon('close')}</button></div>
+      <div class="dialog-header"><h2 id="analysis-title">Group and pivot</h2><button class="icon-button" value="cancel" aria-label="Close analysis">${icon('close')}</button></div>
       <div class="segmented" role="tablist"><button type="button" role="tab" aria-selected="true" id="group-tab">Group</button><button type="button" role="tab" aria-selected="false" id="pivot-tab">Pivot</button></div>
       <div class="analysis-fields" id="analysis-fields"></div>
       <button type="button" class="primary" id="run-analysis">Run summary</button>
@@ -161,7 +173,7 @@ app.innerHTML = `
 
   <dialog id="sql-dialog" aria-labelledby="sql-title">
     <form method="dialog" class="dialog-shell wide" id="sql-form">
-      <div class="dialog-header"><div><p class="eyebrow blue">Power view</p><h2 id="sql-title">Query with SQL</h2></div><button class="icon-button" value="cancel" aria-label="Close SQL">${icon('close')}</button></div>
+      <div class="dialog-header"><h2 id="sql-title">Query with SQL</h2><button class="icon-button" value="cancel" aria-label="Close SQL">${icon('close')}</button></div>
       <label class="sql-label" for="sql-editor">DuckDB SQL · table name is <code>data</code></label>
       <textarea id="sql-editor" spellcheck="false">SELECT * FROM data LIMIT 100</textarea>
       <p class="form-help">Read-only statements only. Display is capped at 1,000 rows.</p>
@@ -172,7 +184,7 @@ app.innerHTML = `
 
   <dialog id="export-dialog" aria-labelledby="export-title">
     <form method="dialog" class="dialog-shell export-shell">
-      <div class="dialog-header"><div><p class="eyebrow">Take the answer</p><h2 id="export-title">Export this view</h2></div><button class="icon-button" value="cancel" aria-label="Close export">${icon('close')}</button></div>
+      <div class="dialog-header"><h2 id="export-title">Export this view</h2><button class="icon-button" value="cancel" aria-label="Close export">${icon('close')}</button></div>
       <p id="export-scope">All rows in the current view will be exported.</p>
       <fieldset class="format-options"><legend>Format</legend>
         <label><input type="radio" name="format" value="csv" checked /><span><strong>CSV</strong><small>Best for spreadsheets</small></span></label>
@@ -185,7 +197,7 @@ app.innerHTML = `
 
   <dialog id="error-dialog" aria-labelledby="error-title">
     <form method="dialog" class="dialog-shell">
-      <div class="dialog-header"><div><p class="eyebrow error">Couldn’t read the file</p><h2 id="error-title">Check the import settings</h2></div><button class="icon-button" value="cancel" aria-label="Close error">${icon('close')}</button></div>
+      <div class="dialog-header"><h2 id="error-title">Check the import settings</h2><button class="icon-button" value="cancel" aria-label="Close error">${icon('close')}</button></div>
       <p id="error-message"></p>
       <div class="import-options">
         <label>Delimiter<select id="delimiter"><option value="auto">Detect automatically</option><option value=",">Comma</option><option value="\t">Tab</option><option value=";">Semicolon</option><option value="|">Pipe</option></select></label>
@@ -200,6 +212,7 @@ app.innerHTML = `
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const landing = $('#landing');
+const privacyLimits = $('#privacy-limits');
 const workspace = $('#workspace');
 const fileInput = $<HTMLInputElement>('#file-input');
 const dropZone = $('#drop-zone');
@@ -310,7 +323,6 @@ async function openFile(file: File): Promise<void> {
     $('#error-message').textContent = engineFailure
       ? 'Glassline could not start its on-device data engine. Nothing was uploaded. Check that this browser allows WebAssembly, then try again.'
       : friendlyError(error);
-    document.querySelector<HTMLElement>('#error-dialog .eyebrow')!.textContent = engineFailure ? 'Couldn’t start local processing' : 'Couldn’t read the file';
     document.querySelector<HTMLElement>('#error-dialog .import-options')!.hidden = engineFailure;
     document.querySelector<HTMLElement>('#error-dialog .form-help')!.hidden = engineFailure;
     $('#retry-import').textContent = engineFailure ? 'Retry engine' : 'Try again';
@@ -330,7 +342,7 @@ function friendlyError(error: unknown): string {
 }
 
 function enterWorkspace(file: File): void {
-  landing.hidden = true; $('#site-footer').hidden = true; workspace.hidden = false;
+  landing.hidden = true; privacyLimits.hidden = true; workspace.hidden = false;
   document.querySelectorAll<HTMLElement>('.only-workspace').forEach((item) => { item.hidden = demoMode; });
   replaceHeading('hero-title', 2);
   const workspaceTitle = replaceHeading('workspace-title', 1);
@@ -554,7 +566,7 @@ async function exportView(): Promise<void> {
 function resetApp(): void {
   loadSequence++;
   const previousEngine = engine; engine = null; void previousEngine?.close().catch(() => undefined); currentFile = null; columns = []; filters = []; sort = null; rowCount = null;
-  workspace.hidden = true; landing.hidden = false; $('#site-footer').hidden = false; fileInput.value = '';
+  workspace.hidden = true; landing.hidden = false; privacyLimits.hidden = false; fileInput.value = '';
   document.querySelectorAll<HTMLElement>('.only-workspace').forEach((item) => { item.hidden = true; });
   replaceHeading('workspace-title', 2);
   replaceHeading('hero-title', 1);

@@ -174,6 +174,57 @@ test('landing page is accessible and responsive', async ({ page }) => {
   expect(results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
 
+test('landing privacy guidance and the demo footer remain available', async ({ page }) => {
+  await page.goto('/');
+  const privacySection = page.getByRole('region', { name: 'Privacy and limits' });
+  await expect(privacySection).toBeVisible();
+  await expect(privacySection.getByRole('listitem')).toHaveCount(3);
+  await expect(privacySection.getByRole('listitem').nth(0)).toContainText('Cloud save and collaboration are not available');
+  await expect(privacySection.getByRole('listitem').nth(1)).toContainText('does not store a file you choose or an export');
+  await expect(privacySection.getByRole('listitem').nth(2)).toContainText('Very large files may fail');
+
+  const stepsBox = await page.locator('.how-strip').boundingBox();
+  const privacyBox = await privacySection.boundingBox();
+  expect(stepsBox).not.toBeNull();
+  expect(privacyBox).not.toBeNull();
+  expect(privacyBox!.y).toBeGreaterThanOrEqual(stepsBox!.y + stepsBox!.height - 1);
+
+  await privacySection.getByRole('link', { name: 'Read the privacy details' }).click();
+  await expect(page).toHaveTitle('Privacy — Glassline');
+  await expect(page.getByRole('heading', { level: 1, name: 'Understand how your file is handled.' })).toBeVisible();
+
+  await page.goto('/demo');
+  await expect(page.getByRole('heading', { level: 1, name: 'sample-orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('#row-count')).toContainText('40 rows');
+  const workspaceBox = await page.locator('#workspace').boundingBox();
+  expect(workspaceBox?.height).toBeGreaterThan(300);
+  const footer = page.locator('#site-footer');
+  await expect(footer).toBeVisible();
+  await footer.scrollIntoViewIfNeeded();
+  await expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy/');
+  await expect(footer.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms/');
+  await expect(footer.getByRole('link', { name: 'Built by Param Factory' })).toBeVisible();
+  await expect(footer).toContainText('v1.3');
+});
+
+test('workspace dialogs use one literal task heading', async ({ page }) => {
+  await openDemo(page);
+  for (const item of [
+    { trigger: 'Filter rows', dialog: 'Filter rows' },
+    { trigger: 'Group and pivot', dialog: 'Group and pivot' },
+    { trigger: 'SQL query', dialog: 'Query with SQL' },
+    { trigger: 'Export view', dialog: 'Export this view' },
+  ]) {
+    await page.getByRole('button', { name: item.trigger }).click();
+    const dialog = page.getByRole('dialog', { name: item.dialog, exact: true });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading')).toHaveCount(1);
+    await expect(dialog.getByRole('heading')).toHaveText(item.dialog);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
+});
+
 test('the file picker has one keyboard stop', async ({ page }) => {
   await page.goto('/');
   await page.locator('#file-input').focus();
@@ -219,7 +270,7 @@ test('@claim:core-workflow filters, summarizes, pivots and queries the sample fi
   await expect(page.locator('#row-count')).toContainText('10 rows');
 
   await page.getByRole('button', { name: 'Group and pivot' }).click();
-  const analysis = page.getByRole('dialog', { name: 'Group & pivot' });
+  const analysis = page.getByRole('dialog', { name: 'Group and pivot' });
   await analysis.locator('#group-column').selectOption('status');
   await analysis.getByRole('button', { name: 'Run summary' }).click();
   await expect(analysis.getByRole('cell', { name: 'Shipped' })).toBeVisible();
@@ -275,7 +326,7 @@ test('@claim:local-processing keeps the complete demo workflow on the site origi
   await filter.locator('input').fill('Shipped');
   await filter.getByRole('button', { name: 'Apply filters' }).click();
   await page.getByRole('button', { name: 'Group and pivot' }).click();
-  await page.getByRole('dialog', { name: 'Group & pivot' }).getByRole('button', { name: 'Run summary' }).click();
+  await page.getByRole('dialog', { name: 'Group and pivot' }).getByRole('button', { name: 'Run summary' }).click();
   await page.getByRole('button', { name: 'Close analysis' }).click();
   await page.getByRole('button', { name: 'SQL query' }).click();
   await page.getByRole('dialog', { name: 'Query with SQL' }).getByRole('button', { name: 'Run query' }).click();
@@ -298,6 +349,10 @@ test('@claim:local-processing keeps the complete demo workflow on the site origi
 test('@claim:real-file-storage clears a selected file and its export when the tab closes', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
+  const requests: Array<{ method: string; origin: string }> = [];
+  const webSockets: string[] = [];
+  page.on('request', (request) => requests.push({ method: request.method(), origin: new URL(request.url()).origin }));
+  page.on('websocket', (socket) => webSockets.push(socket.url()));
   const marker = `PRIVATE-FILE-CHECK-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   try {
     await page.goto(process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173');
@@ -312,6 +367,9 @@ test('@claim:real-file-storage clears a selected file and its export when the ta
     await page.getByRole('button', { name: 'Export file' }).click();
     await downloadPromise;
     expect(await storedMarkerLocations(page, marker)).toEqual([]);
+    expect(requests.every((request) => request.method === 'GET')).toBe(true);
+    expect([...new Set(requests.map((request) => request.origin))]).toEqual([new URL(page.url()).origin]);
+    expect(webSockets).toEqual([]);
 
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: /Open 5-million-row CSV files/ })).toBeVisible();
@@ -509,6 +567,9 @@ test('routes have unique metadata, shared navigation, focus and a designed 404',
     await expect(page.locator('h1')).toHaveCount(1);
     await expect(page.locator('h1')).toBeFocused();
     await expect(page.locator('#route-status')).toContainText('loaded');
+    const routeStatusBox = await page.locator('#route-status').boundingBox();
+    expect(routeStatusBox?.width).toBeLessThanOrEqual(1);
+    expect(routeStatusBox?.height).toBeLessThanOrEqual(1);
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
     await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
     await expect(page.getByRole('link', { name: 'Demo' })).toBeVisible();
@@ -522,8 +583,11 @@ test('routes have unique metadata, shared navigation, focus and a designed 404',
   expect(config.responseOverrides['404']).toEqual({ rewrite: '/404.html', statusCode: 404 });
   await page.goto('/404.html');
   await expect(page).toHaveTitle('Page not found — Glassline');
-  await expect(page.getByRole('heading', { level: 1, name: 'This page has no rows.' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Glassline' })).toHaveAttribute('href', '/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Return to the CSV viewer' })).toHaveAttribute('href', '/');
+  const notFoundStatusBox = await page.locator('#route-status').boundingBox();
+  expect(notFoundStatusBox?.width).toBeLessThanOrEqual(1);
+  expect(notFoundStatusBox?.height).toBeLessThanOrEqual(1);
   const notFoundA11y = await new AxeBuilder({ page }).analyze();
   expect(notFoundA11y.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact ?? ''))).toEqual([]);
 });
