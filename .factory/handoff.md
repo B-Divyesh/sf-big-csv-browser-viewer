@@ -130,3 +130,22 @@ npm run build
 npm run test:e2e
 npm run test:claims
 ```
+
+## Verification 8 handoff
+
+Date: September 5, 2026
+
+Independent QA reviewed implementation `4ee27d9939db87bf3f013477090ef9d288c72eda`
+and documentation `81e81088eb435e5c1bb0b2575bde159e394c7233`. It made no
+product-code changes. The live product and clean checkout passed: `npm ci`,
+9/9 unit tests, build, local and live browser suites (40 passed; two dedicated
+large-file instances skipped by design), all 11 claim commands separately, and
+the one-gigabyte five-million-row claim in 18.8 seconds. Fresh desktop and
+phone sample checks confirmed the clear first screen, populated 40-row viewer,
+persistent demo label, reset, and blank real-data exit without web storage
+changes. Live Lighthouse was 100/100/100/100.
+
+The verification verdict is **PASS** with zero findings and zero untested
+claims. The detailed report is `.factory/verification-8.md`; external evidence
+is `/work/.evidence/verify-8/`, with the required summary at
+`/work/.evidence/qa-report.md`.
