@@ -1,33 +1,42 @@
-# Verification handoff — big-csv-browser-viewer-verify-7
+# Review handoff — big-csv-browser-viewer-review-3
 
 Date: September 5, 2026
 
 Implementation SHA: `69cd22503c55af9c162385ea380bae53dffbd23c`
-Documentation SHA: `31e3b3b6d5946c309d59f4ce2eecb23d11e1309f`
+
+Reviewed documentation base: `4ecfe217cd5af1d89bd1736e05f1f307b135f38a`
 
 ## Result
 
-Independent verification passed with zero findings and zero untested public
-claims. The implementation candidate is live and its HTML, entry JavaScript,
-and CSS match the locally built candidate byte-for-byte.
+**FAIL:** three low-severity findings, zero untested public claims. Product
+code was not modified. See `.factory/review-3.md` for the complete evidence.
 
-## How verified
+The functional product is healthy: every claim command passes, all 29 built
+files match live, and the 5-million-row / 1.013 GB benchmark completed in
+16.21 seconds. Acceptance still requires zero findings.
 
-- Clean `npm ci` completed with 0 reported vulnerabilities.
-- `npm test` passed 9 tests and `npm run build` produced `dist/`.
-- Local and live `npm run test:e2e` each passed all 38 desktop/390 px cases.
-- Each of the 11 commands in `.factory/claims.json` passed separately.
-- `npm run test:large-file` generated a 1,012,961,173-byte, 5,000,000-row
-  CSV and passed its under-30-second open/count assertion.
-- The production-preview benchmark completed the same job in 16.18 seconds.
-- Fresh phone and desktop live checks confirmed the first screen, one-click
-  demo, persistent label, reset, blank real-file exit, privacy boundary,
-  routes, links, headers, focus, offline behavior, and designed 404.
-- Playwright Axe checks found no serious or critical issues. The standalone
-  Axe CLI could not launch against the image's incompatible ChromeDriver, so
-  the installed Playwright Axe integration is the accessibility evidence.
+## Findings to repair
 
-## Run it
+1. Add the required separate privacy/limits section to the landing page.
+2. Keep the standard footer visible or available on `/demo`.
+3. Replace or remove metaphorical/decorative labels on the 404 and dialogs.
+
+## Verification completed
+
+- Fresh desktop and 390 px live first-screen and one-click demo checks.
+- `npm ci`, `npm test`, and `npm run build` from a clean clone.
+- Complete local and live Playwright suites: 36 passed, 2 dedicated large
+  cases skipped, zero failed in each run.
+- Every command in `.factory/claims.json`, plus `npm run test:claims`.
+- 5,000,000 rows / 1,012,961,173 bytes in 16.21 seconds.
+- Live route, link, storage, request, keyboard, focus, reduced-motion,
+  accessibility, offline/update, recovery, boundary, and 404 checks.
+- `verify-url.sh` passed. Playwright Axe found no serious/critical issues.
+- Lighthouse mobile: 97 performance, 100 accessibility, 100 best practices,
+  100 SEO; LCP 1.44 s, CLS 0.
+- Byte parity for all 29 public build files.
+
+## Run the existing gates
 
 ```sh
 npm ci
@@ -37,10 +46,7 @@ npm run test:e2e
 npm run test:claims
 ```
 
-The product is a Vite static site; deploy the contents of `dist/`.
-
-## Known limits
-
-The large-file timing is a Chromium benchmark result. Browser memory and speed
-vary, especially on Safari; the product honestly says very large files may
-fail.
+After the three copy/structure repairs, rerun the same commands against local
+production output and live, then repeat the first-read, route, footer, and
+complete-copy audit. A new review may pass only with zero findings and zero
+untested claims.
