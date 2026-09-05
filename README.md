@@ -16,7 +16,7 @@ For analysts who receive files a spreadsheet app cannot open and need a quick an
 - Filters, sorts, groups, pivots, profiles columns, and runs read-only SQL.
 - Exports every filtered row as CSV or Parquet.
 - Opens 40 sample orders without an account and resets them on demand.
-- Keeps workspace actions usable at 390 px and supports `/`, `g`, and `e` keyboard shortcuts.
+- Keeps every visible action at least 44 by 44 pixels at 390 px. The workspace supports `/`, `g`, and `e` keyboard shortcuts.
 
 The sample route uses the full CSV viewer. See [.factory/demo.md](.factory/demo.md) for its data and isolation model.
 

@@ -102,6 +102,53 @@ async function openDemo(page: import('@playwright/test').Page): Promise<void> {
   await expect(page.locator('#row-count')).toContainText('40 rows');
 }
 
+function numberedCsv(rowTotal: number): string {
+  const rows = ['row_id,group_name,pivot_name,amount'];
+  for (let index = 1; index <= rowTotal; index += 1) {
+    rows.push(`${index},Group ${String(index).padStart(4, '0')},Value ${String(((index - 1) % 25) + 1).padStart(2, '0')},${index}`);
+  }
+  return `${rows.join('\n')}\n`;
+}
+
+async function openCsv(page: import('@playwright/test').Page, name: string, source: string): Promise<void> {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(source) });
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible({ timeout: 45_000 });
+}
+
+async function expectVisibleTouchTargets(page: import('@playwright/test').Page, state: string): Promise<void> {
+  // Dialogs scale in for 200 ms. Measure their settled CSS boxes rather than a
+  // transient animation frame that is intentionally a fraction smaller.
+  await page.waitForTimeout(250);
+  const targets = await page.evaluate(() => {
+    const selector = 'a[href], button, input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
+    const controls = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    const targetFor = (control: HTMLElement): HTMLElement => {
+      if (control instanceof HTMLInputElement && ['checkbox', 'radio'].includes(control.type)) {
+        return control.closest('label') ?? control;
+      }
+      return control;
+    };
+    const uniqueTargets = [...new Set(controls.map(targetFor))];
+    return uniqueTargets.flatMap((target) => {
+      const style = getComputedStyle(target);
+      const rect = target.getBoundingClientRect();
+      if (target.closest('[hidden]') || style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0) return [];
+      const label = target.getAttribute('aria-label')
+        || target.getAttribute('title')
+        || target.textContent?.replace(/\s+/g, ' ').trim()
+        || target.id
+        || target.tagName.toLowerCase();
+      return [{ label, width: rect.width, height: rect.height }];
+    });
+  });
+  expect(targets.length, `${state} should expose interactive targets`).toBeGreaterThan(0);
+  for (const target of targets) {
+    expect(target.width, `${state}: ${target.label} target width`).toBeGreaterThanOrEqual(44);
+    expect(target.height, `${state}: ${target.label} target height`).toBeGreaterThanOrEqual(44);
+  }
+}
+
 async function storedMarkerLocations(page: import('@playwright/test').Page, marker: string): Promise<string[]> {
   return page.evaluate(async (needle) => {
     const encode = new TextEncoder().encode(needle);
@@ -204,7 +251,7 @@ test('landing privacy guidance and the demo footer remain available', async ({ p
   await expect(footer.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy/');
   await expect(footer.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms/');
   await expect(footer.getByRole('link', { name: 'Built by Param Factory' })).toBeVisible();
-  await expect(footer).toContainText('v1.3');
+  await expect(footer).toContainText('v1.4');
 });
 
 test('workspace dialogs use one literal task heading', async ({ page }) => {
@@ -401,6 +448,64 @@ test('@claim:import-recovery retries a separator mismatch with the chosen separa
   await expect(page.getByRole('gridcell', { name: 'North,East,urgent' })).toBeVisible();
 });
 
+test('@claim:grid-window renders a 100-row window while retaining the full row count', async ({ page }) => {
+  await openCsv(page, 'window-check.csv', numberedCsv(1_100));
+  await expect(page.locator('#row-count')).toContainText('1,100 rows');
+  await expect(page.locator('#grid-content .grid-body .grid-row')).toHaveCount(100);
+  await expect(page.locator('#grid-status')).toContainText('Rows 1–100 of 1,100');
+});
+
+test('@claim:filtered-profile calculates column statistics across the filtered view', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) <= 720, 'Column profiles use the desktop column panel; the declared claim runs in desktop Chromium.');
+  await openDemo(page);
+  await page.getByRole('button', { name: 'Filter rows' }).click();
+  const filter = page.getByRole('dialog', { name: 'Filter rows' });
+  await filter.locator('select').nth(0).selectOption('region');
+  await filter.locator('select').nth(1).selectOption('equals');
+  await filter.locator('input').fill('North');
+  await filter.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.locator('#row-count')).toContainText('10 rows');
+  await page.locator('#column-list .column-item').filter({ hasText: 'region' }).click();
+  await expect(page.locator('#stats-values')).toContainText('Rows');
+  await expect(page.locator('#stats-values')).toContainText('Filled');
+  await expect(page.locator('#stats-values')).toContainText('Distinct (approx.)');
+  const values = await page.locator('#stats-values').evaluate((list) => {
+    const result: Record<string, string> = {};
+    for (let item = list.firstElementChild; item; item = item.nextElementSibling) {
+      if (item.tagName === 'DT' && item.nextElementSibling?.tagName === 'DD') result[item.textContent ?? ''] = item.nextElementSibling.textContent ?? '';
+    }
+    return result;
+  });
+  expect(values).toMatchObject({ Rows: '10', Filled: '10', 'Distinct (approx.)': '1' });
+});
+
+test('@claim:analysis-limits caps group rows and pivot value columns', async ({ page }) => {
+  await openCsv(page, 'analysis-limits.csv', numberedCsv(600));
+  await expect(page.locator('#row-count')).toContainText('600 rows');
+  await page.getByRole('button', { name: 'Group and pivot' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Group and pivot' });
+  await dialog.locator('#group-column').selectOption('group_name');
+  await dialog.getByRole('button', { name: 'Run summary' }).click();
+  await expect(dialog.locator('#analysis-result tbody tr')).toHaveCount(500);
+
+  await dialog.getByRole('tab', { name: 'Pivot' }).click();
+  await dialog.locator('#pivot-row').selectOption('group_name');
+  await dialog.locator('#pivot-column').selectOption('pivot_name');
+  await dialog.getByRole('button', { name: 'Run summary' }).click();
+  await expect(dialog.locator('#analysis-result thead th')).toHaveCount(21);
+});
+
+test('@claim:sql-display-limit caps displayed SQL results at 1,000 rows', async ({ page }) => {
+  await openCsv(page, 'sql-limit.csv', numberedCsv(1_100));
+  await expect(page.locator('#row-count')).toContainText('1,100 rows');
+  await page.getByRole('button', { name: 'SQL query' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Query with SQL' });
+  await dialog.locator('#sql-editor').fill('SELECT * FROM data ORDER BY row_id');
+  await dialog.getByRole('button', { name: 'Run query' }).click();
+  await expect(dialog.locator('#sql-status')).toContainText('1,000 rows');
+  await expect(dialog.locator('#sql-result tbody tr')).toHaveCount(1_000);
+});
+
 test('@claim:large-file opens and counts a 5-million-row, about 1 GB CSV within 30 seconds', async ({ page }) => {
   test.skip(process.env.GLASSLINE_RUN_LARGE_CLAIM !== '1', 'Run the large-file claim through its dedicated command.');
   test.setTimeout(180_000);
@@ -448,31 +553,56 @@ test('opens RFC-style quoted multiline CSV fields without relaxing malformed-quo
   }
 });
 
-test('@claim:mobile-controls keeps every workspace action tappable at 390px', async ({ page }) => {
+test('@claim:mobile-controls keeps every visible action tappable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?demo=1');
+  await page.goto('/');
   await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(390);
+  await expectVisibleTouchTargets(page, 'landing and footer');
+
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
   await expect(page.getByRole('heading', { name: 'sample-orders.csv' })).toBeVisible({ timeout: 45_000 });
+  await expectVisibleTouchTargets(page, 'populated workspace and footer');
 
-  const actions = ['Filter rows', 'Group and pivot', 'SQL query', 'Export view'];
-  const boxes = await Promise.all(actions.map(async (name) => {
-    const box = await page.getByRole('button', { name }).boundingBox();
-    expect(box, `${name} should be visible in the mobile toolbar`).not.toBeNull();
-    expect(box!.width, `${name} target width`).toBeGreaterThanOrEqual(44);
-    expect(box!.height, `${name} target height`).toBeGreaterThanOrEqual(44);
-    return box!;
-  }));
-
-  for (let index = 1; index < boxes.length; index += 1) {
-    expect(boxes[index]!.x - (boxes[index - 1]!.x + boxes[index - 1]!.width), 'adjacent targets need 8px separation').toBeGreaterThanOrEqual(8);
-  }
   await page.keyboard.press('/');
-  await expect(page.getByRole('dialog', { name: 'Filter rows' })).toBeVisible();
+  const filter = page.getByRole('dialog', { name: 'Filter rows' });
+  await expect(filter).toBeVisible();
+  await expectVisibleTouchTargets(page, 'filter dialog');
+  await filter.locator('select').nth(0).selectOption('region');
+  await filter.locator('select').nth(1).selectOption('equals');
+  await filter.locator('input').fill('North');
+  await filter.getByRole('button', { name: 'Apply filters' }).click();
+  await expect(page.locator('#row-count')).toContainText('10 rows');
+  await expectVisibleTouchTargets(page, 'filtered workspace');
+
+  await page.getByRole('button', { name: 'Group and pivot' }).click();
+  const analysis = page.getByRole('dialog', { name: 'Group and pivot' });
+  await expectVisibleTouchTargets(page, 'group dialog');
+  await analysis.getByRole('tab', { name: 'Pivot' }).click();
+  await expectVisibleTouchTargets(page, 'pivot dialog');
   await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'SQL query' }).click();
+  await expectVisibleTouchTargets(page, 'SQL dialog');
+  await page.keyboard.press('Escape');
+
   await page.keyboard.press('g');
   await expect(page.locator('#grid-scroll')).toBeFocused();
   await page.keyboard.press('e');
-  await expect(page.getByRole('dialog', { name: 'Export this view' })).toBeVisible();
+  const exportDialog = page.getByRole('dialog', { name: 'Export this view' });
+  await expect(exportDialog).toBeVisible();
+  await expectVisibleTouchTargets(page, 'export dialog');
+  await page.keyboard.press('Escape');
+
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({ name: 'broken.csv', mimeType: 'text/csv', buffer: Buffer.from('id,name\n1,"unclosed\n') });
+  await expect(page.getByRole('dialog', { name: 'Check the import settings' })).toBeVisible({ timeout: 15_000 });
+  await expectVisibleTouchTargets(page, 'import recovery dialog');
+
+  for (const route of ['/privacy/', '/terms/', '/404.html']) {
+    await page.goto(route);
+    await expect(page.locator('h1')).toBeVisible();
+    await expectVisibleTouchTargets(page, `${route} page`);
+  }
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });
 
@@ -488,7 +618,7 @@ test('@claim:parquet-export exports the filtered sample view as valid Parquet', 
 
   await page.getByRole('button', { name: 'Export view' }).click();
   const dialog = page.getByRole('dialog', { name: 'Export this view' });
-  await dialog.getByRole('radio', { name: 'Parquet Smaller, typed data' }).check();
+  await dialog.getByRole('radio', { name: 'Parquet Typed column data' }).check();
   const downloadPromise = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Export file' }).click();
   const download = await downloadPromise;

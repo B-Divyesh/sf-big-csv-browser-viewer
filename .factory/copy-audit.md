@@ -1,6 +1,6 @@
 # Copy audit
 
-Audited September 5, 2026 after repair 7. Counts treat hyphenated terms, paths, URLs, and keyboard keys as one word. No sentence exceeds 22 words. No banned marketing terms, mood headings, or metaphorical labels remain.
+Audited September 5, 2026 after repair 8. Counts treat hyphenated terms, paths, URLs, and keyboard keys as one word. No sentence exceeds 22 words. No banned marketing terms, mood headings, or metaphorical labels remain.
 
 ## Landing page
 
@@ -41,7 +41,17 @@ Audited September 5, 2026 after repair 7. Counts treat hyphenated terms, paths, 
 | Very large files may fail. | 5 | Pass; practical limit |
 | Open 5-million-row CSV files in your browser. | 6 | Pass; large-file |
 | Built by Param Factory | 4 | Pass |
-| v1.3 · Original AI-generated artwork | 4 | Pass; version and provenance |
+| v1.4 · Original AI-generated artwork | 4 | Pass; version and provenance |
+
+## Workspace
+
+| Copy | Words | Result |
+| --- | ---: | --- |
+| Showing up to 100 rows | 5 | Pass; grid-window |
+| Calculated across the current filtered view. | 7 | Pass; filtered-profile |
+| Results are capped at 500 rows and 20 pivot columns. | 10 | Pass; analysis-limits |
+| Display is capped at 1,000 rows. | 7 | Pass; sql-display-limit |
+| Typed column data | 3 | Pass; parquet-export; no size comparison |
 
 ## Dialogs
 
@@ -60,16 +70,16 @@ The dialog name is its single literal task heading. No secondary mood label is p
 | Using column | 2 | Pass; field label |
 | Run summary | 2 | Pass; result-naming action |
 | Choose fields, then run a summary. | 6 | Pass; next step |
-| Results are capped at 500 rows and 20 pivot columns. | 10 | Pass; boundary explanation |
+| Results are capped at 500 rows and 20 pivot columns. | 10 | Pass; analysis-limits |
 | Query with SQL | 3 | Pass; direct task |
 | DuckDB SQL · table name is data | 6 | Pass; field label |
 | Read-only statements only. | 3 | Pass; input limit |
-| Display is capped at 1,000 rows. | 7 | Pass; boundary explanation |
+| Display is capped at 1,000 rows. | 7 | Pass; sql-display-limit |
 | Run query | 2 | Pass; result-naming action |
 | Export this view | 3 | Pass; direct task |
 | All rows in the current view will be exported. | 9 | Pass; export scope |
 | Best for spreadsheets | 3 | Pass; format help |
-| Smaller, typed data | 3 | Pass; format help |
+| Typed column data | 3 | Pass; parquet-export; no comparative size claim |
 | Created entirely on this device | 5 | Pass; local-processing |
 | Export file | 2 | Pass; result-naming action |
 | Check the import settings | 4 | Pass; direct recovery task |
@@ -93,7 +103,7 @@ The dialog name is its single literal task heading. No secondary mood label is p
 | Try the sample data | 4 | Pass; result-naming action |
 | Open 5-million-row CSV files in your browser. | 6 | Pass; large-file |
 | Built by Param Factory | 4 | Pass |
-| v1.3 | 1 | Pass; version |
+| v1.4 | 1 | Pass; version |
 
 ## README
 
@@ -106,7 +116,8 @@ The dialog name is its single literal task heading. No secondary mood label is p
 | Filters, sorts, groups, pivots, profiles columns, and runs read-only SQL. | 10 | Pass; core-workflow |
 | Exports every filtered row as CSV or Parquet. | 8 | Pass; export claims |
 | Opens 40 sample orders without an account and resets them on demand. | 12 | Pass; demo-sandbox |
-| Keeps workspace actions usable at 390 px and supports `/`, `g`, and `e` keyboard shortcuts. | 14 | Pass; mobile-controls |
+| Keeps every visible action at least 44 by 44 pixels at 390 px. | 13 | Pass; mobile-controls |
+| The workspace supports `/`, `g`, and `e` keyboard shortcuts. | 9 | Pass; mobile-controls |
 | The sample route uses the full CSV viewer. | 8 | Pass |
 | Files, filters, queries, and exports run in the browser. | 9 | Pass; local-processing |
 | During the tested demo, every network request stays on this site. | 10 | Pass; local-processing |

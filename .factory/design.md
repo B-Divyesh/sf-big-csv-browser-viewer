@@ -32,7 +32,7 @@ Fine glass highlights use white at 6–12% alpha only on surfaces, never for bod
 
 ## Spacing and shape
 
-The base unit is 4px. Primary rhythm: 8, 12, 16, 24, 32, 48, 72px. Controls are at least 44px high; tool clusters use 8px gaps. Glass panes use 16px radii on the landing surface, 10px in the dense workspace, and 999px only for status capsules. The grid uses square cells and 1px rules to prioritize scanability.
+The base unit is 4px. Primary rhythm: 8, 12, 16, 24, 32, 48, 72px. Interactive targets are at least 44 × 44px, including dense grid headings, chips, tabs, route links, and footer links; tool clusters use 8px gaps. Glass panes use 16px radii on the landing surface, 10px in the dense workspace, and 999px only for status capsules. The grid uses square cells and 1px rules to prioritize scanability.
 
 ## Interaction grammar
 

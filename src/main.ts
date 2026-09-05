@@ -143,7 +143,7 @@ app.innerHTML = `
 
   <footer class="site-footer" id="site-footer">
     <p>Open 5-million-row CSV files in your browser.</p>
-    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.3 · Original AI-generated artwork</span></p>
+    <p><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://sociobot.in">Built by Param Factory</a><span>v1.4 · Original AI-generated artwork</span></p>
   </footer>
 
   <div class="loading-layer" id="loading-layer" hidden role="status" aria-live="assertive">
@@ -188,7 +188,7 @@ app.innerHTML = `
       <p id="export-scope">All rows in the current view will be exported.</p>
       <fieldset class="format-options"><legend>Format</legend>
         <label><input type="radio" name="format" value="csv" checked /><span><strong>CSV</strong><small>Best for spreadsheets</small></span></label>
-        <label><input type="radio" name="format" value="parquet" /><span><strong>Parquet</strong><small>Smaller, typed data</small></span></label>
+        <label><input type="radio" name="format" value="parquet" /><span><strong>Parquet</strong><small>Typed column data</small></span></label>
       </fieldset>
       <p class="local-note">${icon('shield')} Created entirely on this device</p>
       <div class="dialog-actions"><button value="cancel" class="ghost">Cancel</button><button type="button" class="primary" id="export-now">Export file</button></div>

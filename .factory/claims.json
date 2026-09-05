@@ -50,10 +50,10 @@
   },
   {
     "id": "mobile-controls",
-    "claim": "Workspace actions fit at 390 px, meet 44 px targets, and support keyboard shortcuts.",
+    "claim": "Visible actions on the landing page, workspace, dialogs, footer, legal pages, and recovery screen meet 44 px targets at 390 px; workspace shortcuts also work.",
     "where": "README",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:mobile-controls",
-    "sandbox": "fresh /?demo=1 context at 390x844; measure action targets and spacing, check width, then use / and E shortcuts"
+    "sandbox": "fresh 390x844 context; measure every visible action on landing, workspace, filtered state, dialogs, footer, legal pages, and recovery screen; check width and use /, G, and E shortcuts"
   },
   {
     "id": "real-file-storage",
@@ -68,6 +68,34 @@
     "where": "import help, README",
     "test": "npm run test:e2e -- --project=desktop --grep @claim:import-recovery",
     "sandbox": "fresh browser context; open a UTF-8 file whose automatic separator gives inconsistent columns, choose semicolon, retry, and assert both rows open"
+  },
+  {
+    "id": "grid-window",
+    "claim": "The data grid shows no more than 100 rows at once, while keeping the full filtered row count available.",
+    "where": "workspace grid footer",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:grid-window",
+    "sandbox": "fresh browser context; open a deterministic 1,100-row CSV; assert the full count is 1,100 and exactly 100 data rows are rendered"
+  },
+  {
+    "id": "filtered-profile",
+    "claim": "Column profiles are calculated across the current filtered view.",
+    "where": "workspace column profile",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:filtered-profile",
+    "sandbox": "fresh sample workspace; filter to the 10 North rows; profile region and assert 10 rows, 10 filled values, and one distinct value"
+  },
+  {
+    "id": "analysis-limits",
+    "claim": "Group results show no more than 500 rows, and pivots show no more than 20 value columns.",
+    "where": "group and pivot dialog",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:analysis-limits",
+    "sandbox": "fresh browser context; open 600 distinct groups across 25 pivot values; assert 500 grouped rows and 20 pivot value columns"
+  },
+  {
+    "id": "sql-display-limit",
+    "claim": "Read-only SQL displays no more than 1,000 result rows.",
+    "where": "SQL dialog",
+    "test": "npm run test:e2e -- --project=desktop --grep @claim:sql-display-limit",
+    "sandbox": "fresh browser context; open a deterministic 1,100-row CSV; run an unrestricted SELECT and assert exactly 1,000 displayed rows"
   },
   {
     "id": "large-file",
