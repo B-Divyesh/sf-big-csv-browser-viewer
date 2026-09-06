@@ -1,79 +1,47 @@
-# Verification handoff — big-csv-browser-viewer-verify-9
+# Review handoff — big-csv-browser-viewer-review-5
 
 Date: September 6, 2026
-
 Verdict: **PASS** — zero findings and zero untested public claims.
 
 Live URL: <https://big-csv-browser-viewer.sociobot.in>
-
 Implementation reviewed: `c6b7046e223c1a5bcaca7c9a31d149f2e2d47b75`
-
-Documentation reviewed: `a9bd038686f9ba2539348d44a4668532c96bd785`
+Documentation reviewed: `b2598c38ce39ef69f3fb14162ea913bd3ae54a9a`
 
 ## What was done
 
-Independent verification 9 opened the live product in fresh 1440 × 900 and
-390 × 844 Chromium contexts, exercised the one-click sample and real-file
-separation, ran every declared claim command, and reran the complete local and
-live browser suites. No product code was changed.
+This was a read-only strict review; no product code changed. Fresh live desktop
+and phone browsers confirmed the job, audience, first action, one-click
+40-order demo, demo label, 10-row filter, 40-row reset, blank real-file exit,
+and no changes to pre-existing browser storage markers.
 
-The sample opened 40 realistic orders and 440 cells. North filtering produced
-10 rows, Reset restored 40, and Start for real returned to the blank file
-screen. Pre-seeded localStorage, sessionStorage, IndexedDB, and OPFS markers
-were unchanged.
+All 15 declared claim commands passed separately. The 5-million-row benchmark
+created a 1,012,961,173-byte temporary file outside the repository and passed
+its under-30-second assertion in 29.2 seconds. Local and live full browser
+suites each passed 47 tests with 3 intentional dedicated-case skips.
 
-Normal, invalid, boundary, and recovery paths passed, including empty and
-header-only CSV, one-row CSV, valid LF/CRLF multiline CSV, malformed quoting,
-unsupported format messaging, separator retry, forced engine failure,
-read-only SQL enforcement, CSV/Parquet export, all four workspace limits, and
-the 5-million-row/about-1-GB benchmark.
+Routes, links, legal pages, designed 404, headers, offline demo use, keyboard,
+focus, reduced motion, 390 px targets, 200% zoom, accessibility checks, build
+output, and deployment parity were reviewed. The 29 served production files
+match the implementation build byte-for-byte. A fresh Lighthouse run scored
+97 Performance, 100 Accessibility, 100 Best Practices, and 100 SEO.
 
-All earlier review and verification findings, including Review 2's minor copy
-and keyboard findings and Review 4's target/claim findings, were checked and
-remain resolved. See `.factory/verification-9.md` for the complete disposition
-table.
-
-## Verification results
-
-| Check | Result |
-| --- | --- |
-| `npm ci` | PASS — 127 packages; 0 vulnerabilities. |
-| `npm test` | PASS — 9/9. |
-| `npm run build` | PASS — `dist/` emitted. |
-| All 15 declared claim commands, separately | PASS. |
-| `npm run test:claims` | PASS — 14 regular claims plus the dedicated large claim. |
-| Local `npm run test:e2e` | PASS — 47 passed, 3 intentional skips. |
-| Live `npm run test:e2e` | PASS — 47 passed, 3 intentional skips. |
-| `verify-url.sh` | PASS — correct structure and zero root load errors. |
-| Lighthouse mobile | 100 Performance, 100 Accessibility, 100 Best Practices, 100 SEO. |
-| Deployment parity | PASS — all 29 served build files match production byte for byte. |
-
-Initial production output is 35,332 bytes of entry JavaScript (11.78 KB gzip),
-22,400 bytes of CSS (5.64 KB gzip), and a 77,596-byte hero AVIF. DuckDB and
-WebAssembly are deferred.
-
-Live routes, titles, links, Privacy, Terms, designed 404, security headers,
-keyboard/focus, 44 px phone targets, 200% zoom, reduced motion, axe checks,
-service-worker update, and offline sample reload pass. This is a static product,
-so backend tenant, persistence, health, and 429 checks do not apply.
-
-## How to rerun
+## How to verify
 
 ```sh
 npm ci
 npm test
 npm run build
 npm run test:e2e
-PLAYWRIGHT_BASE_URL=https://big-csv-browser-viewer.sociobot.in npm run test:e2e
 npm run test:claims
+PLAYWRIGHT_BASE_URL=https://big-csv-browser-viewer.sociobot.in npm run test:e2e
 ```
 
-Evidence: `/work/.evidence/verify-9/`
-
-Report: `.factory/verification-9.md`
+For the complete evidence and prior-finding disposition, read
+`.factory/review-5.md`. Browser logs, screenshots, Lighthouse output, claim
+logs, and parity records are under `/work/.evidence/review-5/`.
 
 ## Known gaps and next steps
 
-No acceptance gap or code repair remains. Browser memory still sets the
-practical file ceiling, as the product states. Future changes should rerun the
-commands above and every exact command in `.factory/claims.json`.
+No acceptance gap or repair remains. Browser memory remains the practical
+limit for very large files, as the product states. Future changes should rerun
+every command above and each exact command in `.factory/claims.json`.
