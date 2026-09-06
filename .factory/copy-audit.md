@@ -1,6 +1,6 @@
 # Copy audit
 
-Audited September 5, 2026 after repair 8. Counts treat hyphenated terms, paths, URLs, and keyboard keys as one word. No sentence exceeds 22 words. No banned marketing terms, mood headings, or metaphorical labels remain.
+Audited September 6, 2026 after repair 8. Counts treat hyphenated terms, paths, URLs, and keyboard keys as one word. No sentence exceeds 22 words. No banned marketing terms, mood headings, or metaphorical labels remain.
 
 ## Landing page
 
